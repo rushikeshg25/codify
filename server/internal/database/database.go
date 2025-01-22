@@ -22,6 +22,7 @@ type Service interface {
 	// Close terminates the database connection.
 	// It returns an error if the connection cannot be closed.
 	Close() error
+	GetDb() *sql.DB
 }
 
 type service struct {
@@ -36,6 +37,10 @@ var (
 	host       = os.Getenv("BLUEPRINT_DB_HOST")
 	dbInstance *service
 )
+
+func (s *service) GetDb() *sql.DB {
+	return s.db
+}
 
 func New() Service {
 	// Reuse Connection
