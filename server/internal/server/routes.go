@@ -1,34 +1,36 @@
 package server
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
+	"net/http"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
-func (s *FiberServer) RegisterFiberRoutes() {
-	// Apply CORS middleware
-	s.App.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-		AllowHeaders:     "Accept,Authorization,Content-Type",
-		AllowCredentials: false, // credentials require explicit origins
-		MaxAge:           300,
+func (s *Server) RegisterRoutes() http.Handler {
+	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"}, // Add your frontend URL
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
+		AllowCredentials: true, // Enable cookies/auth
 	}))
 
-	s.App.Get("/", s.HelloWorldHandler)
+	r.GET("/", s.HelloWorldHandler)
 
-	s.App.Get("/health", s.healthHandler)
+	r.GET("/health", s.healthHandler)
 
+	return r
 }
 
-func (s *FiberServer) HelloWorldHandler(c *fiber.Ctx) error {
-	resp := fiber.Map{
-		"message": "Hello World",
-	}
+func (s *Server) HelloWorldHandler(c *gin.Context) {
+	resp := make(map[string]string)
+	resp["message"] = "Hello World"
 
-	return c.JSON(resp)
+	c.JSON(http.StatusOK, resp)
 }
 
-func (s *FiberServer) healthHandler(c *fiber.Ctx) error {
-	return c.JSON(s.db.Health())
+func (s *Server) healthHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, s.db.Health())
 }

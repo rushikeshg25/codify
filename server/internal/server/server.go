@@ -1,25 +1,38 @@
 package server
 
 import (
-	"github.com/gofiber/fiber/v2"
+	"fmt"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+
+	_ "github.com/joho/godotenv/autoload"
 
 	"server/internal/database"
 )
 
-type FiberServer struct {
-	*fiber.App
+type Server struct {
+	port int
 
 	db database.Service
 }
 
-func New() *FiberServer {
-	server := &FiberServer{
-		App: fiber.New(fiber.Config{
-			ServerHeader: "server",
-			AppName:      "server",
-		}),
+func NewServer() *http.Server {
+	port, _ := strconv.Atoi(os.Getenv("PORT"))
+	NewServer := &Server{
+		port: port,
 
 		db: database.New(),
+	}
+
+	// Declare Server config
+	server := &http.Server{
+		Addr:         fmt.Sprintf(":%d", NewServer.port),
+		Handler:      NewServer.RegisterRoutes(),
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
 
 	return server
