@@ -50,3 +50,17 @@ func VerifyToken(tokenString string) error{
 	}
 	return nil
 }
+
+func GetEmailFromToken(tokenString string) (string,error){
+	claims:=&Claims{}
+	token,err:=jwt.ParseWithClaims(tokenString,claims,func(t *jwt.Token) (interface{}, error) {
+		return jwtSecret,nil
+	})
+	if err!=nil{
+		return "",err
+	}
+	if !token.Valid{
+		return "",fmt.Errorf("invalid token")
+	}
+	return claims.Email,nil
+}

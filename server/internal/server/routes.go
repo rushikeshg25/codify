@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"server/internal/controller"
+	"server/internal/middleware"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -19,15 +20,23 @@ func (s *Server) RegisterRoutes() http.Handler {
 	}))
 	db:=s.dbInstance.GetDb()
 
-	auth:=controller.NewAuthController(db)
-	controller.NewPlaygroundController(db)
+	authController:=controller.NewAuthController(db)
+	playgroundController:=controller.NewPlaygroundController(db)
 
 	r.GET("/health", s.healthHandler)
 	api:= r.Group("/api")
 	{
-		api.POST("/login",auth.Login)
-		api.POST("/signup",auth.Signup)
-		api.GET("/playground", )
+		api.POST("/login",authController.Login)
+		api.POST("/signup",authController.Signup)
+		playground:=api.Group("/playground")
+		playground.Use(middleware.AuthMiddleware)
+		{
+			
+			playground.GET("/:id",playgroundController.GetPlaygrounds)
+			// playground.POST("/:id",controller.NewPlaygroundController(db).CreatePlayground)
+			// playground.PUT("/:id",controller.NewPlaygroundController(db).UpdatePlayground)
+			// playground.DELETE("/:id",controller.NewPlaygroundController(db).DeletePlayground)
+		}
 	}
 
 	return r
