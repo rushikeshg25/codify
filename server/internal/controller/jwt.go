@@ -9,7 +9,7 @@ import (
 )
 
 type Claims struct{
-	UserId int
+	Email string
 	jwt.StandardClaims
 }
 
@@ -19,10 +19,10 @@ func init(){
 	jwtSecret=[]byte(os.Getenv("JWT_SECRET"))
 }
 
-func GenerateToken(userId int) (string,error){
+func GenerateToken(email string) (string,error){
 	expirationTime:=time.Now().Add(time.Hour*24*7)
 	claims:=&Claims{
-		UserId: userId,
+		Email: email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 			IssuedAt:  time.Now().Unix(),

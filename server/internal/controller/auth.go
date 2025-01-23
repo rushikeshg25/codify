@@ -27,12 +27,13 @@ func NewAuthController(db *sql.DB) *AuthController {
 func (q* AuthController) Login(c *gin.Context) {
 	var reqBody RequestBody
 	var email string
+	var id int
 	var password string
 	if err := c.BindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	err:= q.db.QueryRow("SELECT id FROM users WHERE email = ? AND password = ?", reqBody.Email,reqBody.Password).Scan(&email,&password)
+	err:= q.db.QueryRow("SELECT (id,email,password) FROM users WHERE email = ? AND password = ?", reqBody.Email,reqBody.Password).Scan(&id,&email,&password)
 	if err != sql.ErrNoRows {
 		c.JSON(http.StatusUnauthorized,gin.H{"error": "Invalid credentials"})
 		return
@@ -42,6 +43,12 @@ func (q* AuthController) Login(c *gin.Context) {
 		return
 	}
 	
+	token,err:=GenerateToken(email)
+	if err!=nil{
+		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
+		return
+	}
+	c.SetCookie("token", token, 3600*24*7, "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
 }
 
@@ -55,10 +62,7 @@ func (q* AuthController) Signup(c *gin.Context) {
 		return
 	}
 	err= q.db.QueryRow("SELECT id FROM users WHERE email = ?", reqBody.Email).Scan(&email)
-	if err != nil {
-		c.JSON(http.StatusConflict,gin.H{"error": "User already exists"})
-		return
-	}else if err!=sql.ErrNoRows{
+	if err!=sql.ErrNoRows{
 		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
 		return
 	}
@@ -72,6 +76,14 @@ func (q* AuthController) Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
 		return
 	}
+
+	token,err:=GenerateToken(email)
+	if err!=nil{
+		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
+		return
+	}
+	c.SetCookie("token", token, 3600*24*7, "/", "", true, true)
+
 	c.JSON(http.StatusOK, gin.H{"message": "Signup successful"})
 }
 
