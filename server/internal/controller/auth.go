@@ -84,7 +84,7 @@ func (q* AuthController) Signup(c *gin.Context) {
 	}
 	c.SetCookie("token", token, 3600*24*7, "/", "", true, true)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Signup successful"})
+	c.JSON(http.StatusOK, gin.H{"message": "Signup successful","Email":email})
 }
 
 func HashPassword(password string) (string,error){
