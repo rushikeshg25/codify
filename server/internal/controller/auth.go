@@ -2,6 +2,7 @@ package controller
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -33,9 +34,11 @@ func (q* AuthController) Login(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	err:= q.db.QueryRow("SELECT (id,email,password) FROM users WHERE email = ? AND password = ?", reqBody.Email,reqBody.Password).Scan(&id,&email,&password)
-	if err != sql.ErrNoRows {
-		c.JSON(http.StatusUnauthorized,gin.H{"error": "Invalid credentials"})
+
+	err:= q.db.QueryRow("SELECT * FROM users WHERE email = ?", reqBody.Email).Scan(&id,&email,&password)
+	log.Println(id,email,password)
+	if err!=nil{
+		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
 		return
 	}
 	if !CheckHashPassword(reqBody.Password,password){
