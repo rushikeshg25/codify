@@ -21,7 +21,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	db := s.dbInstance.GetDb()
 
 	authController := controller.NewAuthController(db)
-	playgroundController := controller.NewPlaygroundController(db)
+	CodegroundController := controller.NewCodegroundController(db)
 
 	r.GET("/health", s.healthHandler)
 	api := r.Group("/api")
@@ -32,11 +32,14 @@ func (s *Server) RegisterRoutes() http.Handler {
 		playground := api.Group("/playground")
 		playground.Use(middleware.AuthMiddleware)
 		{
-
-			playground.GET("/:id", playgroundController.GetPlaygrounds)
-			// playground.POST("/:id",controller.NewPlaygroundController(db).CreatePlayground)
-			// playground.PUT("/:id",controller.NewPlaygroundController(db).UpdatePlayground)
-			// playground.DELETE("/:id",controller.NewPlaygroundController(db).DeletePlayground)
+			playground.GET("/", CodegroundController.GetPlaygrounds)
+			playground.POST("/", CodegroundController.CreatePlayground)
+			playground.GET("/:playGroundId", CodegroundController.GetPlayground)
+			playground.PUT("/:playGroundId", CodegroundController.UpdatePlayground)
+			playground.DELETE("/:playGroundId", CodegroundController.DeletePlayground)
+			//prob a start codeground 
+			//prob a end codeground
+			//prob get status of codeground
 		}
 	}
 
