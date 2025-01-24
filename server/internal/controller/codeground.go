@@ -17,7 +17,6 @@ func NewCodegroundController(db *sql.DB) *CodegroundController {
 }
 
 func (q *CodegroundController) GetPlaygrounds(c *gin.Context) {
-	val, _ := c.Get("Email")
 
 	c.JSON(200, gin.H{"message": "Hello"})
 }
