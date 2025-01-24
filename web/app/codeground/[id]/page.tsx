@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/resizable";
 import { FileTree } from "@/components/file-tree";
 import { Terminal } from "@/components/terminal";
-import { Editor } from "@/components/editor";
+import { EditorWindow } from "@/components/editor";
 import { Files, Play, Settings } from "lucide-react";
 import Output from "@/components/output";
 
@@ -52,7 +52,7 @@ export default function CodegroundPage() {
         <ResizablePanel defaultSize={50}>
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel defaultSize={25}>
-              <Editor file={selectedFile} />
+              <EditorWindow file={selectedFile} />
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={8}>

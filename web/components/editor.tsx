@@ -1,28 +1,30 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import Editor from "@monaco-editor/react";
 
 interface EditorProps {
   file: string;
 }
 
-export function Editor({ file }: EditorProps) {
+export function EditorWindow({ file }: EditorProps) {
   return (
-    <ScrollArea className="h-full">
-      <div className="p-4 font-mono text-sm">
-        <div className="text-muted-foreground"> {file}</div>
-        <div className="mt-4">
-          {`import React from 'react';
-
-export default function App() {
-  return (
-    <div>
-      <h1>Hello, Codify!</h1>
-    </div>
-  );
-}`}
-        </div>
-      </div>
-    </ScrollArea>
+    <Editor
+      className="h-full"
+      options={{
+        fontSize: 18,
+      }}
+      height="100%"
+      defaultLanguage="typescript"
+      value="import React from 'react';
+      export default function App() {\nreturn (\n<div>\n<h1>Hello, Codify!</h1>\n</div>\n);}\n"
+    />
   );
 }
+
+//  {/* <div className="p-4 font-mono text-sm">
+//         <div className="text-muted-foreground"> {file}</div>
+//         <div className="mt-4">
+//           {``}
+//         </div>
+//       </div> */}
