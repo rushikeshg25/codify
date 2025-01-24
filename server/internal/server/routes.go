@@ -18,21 +18,21 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true, // Enable cookies/auth
 	}))
-	db:=s.dbInstance.GetDb()
+	db := s.dbInstance.GetDb()
 
-	authController:=controller.NewAuthController(db)
-	playgroundController:=controller.NewPlaygroundController(db)
+	authController := controller.NewAuthController(db)
+	playgroundController := controller.NewPlaygroundController(db)
 
 	r.GET("/health", s.healthHandler)
-	api:= r.Group("/api")
+	api := r.Group("/api")
 	{
-		api.POST("/login",authController.Login)
-		api.POST("/signup",authController.Signup)
-		playground:=api.Group("/playground")
+		api.POST("/login", authController.Login)
+		api.POST("/signup", authController.Signup)
+		playground := api.Group("/playground")
 		playground.Use(middleware.AuthMiddleware)
 		{
-			
-			playground.GET("/:id",playgroundController.GetPlaygrounds)
+
+			playground.GET("/:id", playgroundController.GetPlaygrounds)
 			// playground.POST("/:id",controller.NewPlaygroundController(db).CreatePlayground)
 			// playground.PUT("/:id",controller.NewPlaygroundController(db).UpdatePlayground)
 			// playground.DELETE("/:id",controller.NewPlaygroundController(db).DeletePlayground)

@@ -52,7 +52,7 @@ export function FileTree({ onSelect, selectedFile }: FileTreeProps) {
           key={fullPath}
           className={cn(
             "flex items-center gap-2 px-2 py-1 cursor-pointer rounded hover:bg-accent",
-            selectedFile === fullPath && "bg-accent"
+            selectedFile === fullPath && "bg-accent",
           )}
           onClick={() => onSelect(fullPath)}
         >

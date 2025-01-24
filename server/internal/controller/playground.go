@@ -16,8 +16,8 @@ func NewPlaygroundController(db *sql.DB) *PlaygroundController {
 	}
 }
 
-func (q *PlaygroundController) GetPlaygrounds(c *gin.Context){
-	val,_:=c.Get("Email")
-	
-	c.JSON(200,gin.H{"message": "Hello"})
+func (q *PlaygroundController) GetPlaygrounds(c *gin.Context) {
+	val, _ := c.Get("Email")
+
+	c.JSON(200, gin.H{"message": "Hello"})
 }

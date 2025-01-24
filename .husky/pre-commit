@@ -1,6 +1,3 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
 echo "Running Go and Next.js formatting..."
 
 # Format Go files (inside the server folder)

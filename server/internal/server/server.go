@@ -13,7 +13,7 @@ import (
 )
 
 type Server struct {
-	port int
+	port       int
 	dbInstance database.Service
 }
 

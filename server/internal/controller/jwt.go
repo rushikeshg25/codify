@@ -8,20 +8,20 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-type Claims struct{
+type Claims struct {
 	Email string
 	jwt.StandardClaims
 }
 
 var jwtSecret []byte
 
-func init(){
-	jwtSecret=[]byte(os.Getenv("JWT_SECRET"))
+func init() {
+	jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 }
 
-func GenerateToken(email string) (string,error){
-	expirationTime:=time.Now().Add(time.Hour*24*7)
-	claims:=&Claims{
+func GenerateToken(email string) (string, error) {
+	expirationTime := time.Now().Add(time.Hour * 24 * 7)
+	claims := &Claims{
 		Email: email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
@@ -29,38 +29,38 @@ func GenerateToken(email string) (string,error){
 			Issuer:    "codify",
 		},
 	}
-	
-	token:=jwt.NewWithClaims(jwt.SigningMethodHS256,claims)
-	tokenString,err:=token.SignedString(jwtSecret)
-	if err!=nil{
-		return "",err
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		return "", err
 	}
-	return tokenString,nil
+	return tokenString, nil
 }
 
-func VerifyToken(tokenString string) error{
-	token,err:=jwt.Parse(tokenString,func(t *jwt.Token) (interface{}, error) {
-		return jwtSecret,nil
+func VerifyToken(tokenString string) error {
+	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
 	})
-	if err!=nil{
+	if err != nil {
 		return err
 	}
-	if !token.Valid{
+	if !token.Valid {
 		return fmt.Errorf("invalid token")
 	}
 	return nil
 }
 
-func GetEmailFromToken(tokenString string) (string,error){
-	claims:=&Claims{}
-	token,err:=jwt.ParseWithClaims(tokenString,claims,func(t *jwt.Token) (interface{}, error) {
-		return jwtSecret,nil
+func GetEmailFromToken(tokenString string) (string, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
 	})
-	if err!=nil{
-		return "",err
+	if err != nil {
+		return "", err
 	}
-	if !token.Valid{
-		return "",fmt.Errorf("invalid token")
+	if !token.Valid {
+		return "", fmt.Errorf("invalid token")
 	}
-	return claims.Email,nil
+	return claims.Email, nil
 }

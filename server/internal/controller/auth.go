@@ -24,8 +24,7 @@ func NewAuthController(db *sql.DB) *AuthController {
 	}
 }
 
-
-func (q* AuthController) Login(c *gin.Context) {
+func (q *AuthController) Login(c *gin.Context) {
 	var reqBody RequestBody
 	var email string
 	var id int
@@ -35,28 +34,27 @@ func (q* AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	err:= q.db.QueryRow("SELECT * FROM users WHERE email = ?", reqBody.Email).Scan(&id,&email,&password)
-	log.Println(id,email,password)
-	if err!=nil{
-		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
+	err := q.db.QueryRow("SELECT * FROM users WHERE email = ?", reqBody.Email).Scan(&id, &email, &password)
+	log.Println(id, email, password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	if !CheckHashPassword(reqBody.Password,password){
-		c.JSON(http.StatusUnauthorized,gin.H{"error": "Invalid credentials"})
+	if !CheckHashPassword(reqBody.Password, password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
-	
-	token,err:=GenerateToken(email)
-	if err!=nil{
-		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
+
+	token, err := GenerateToken(email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 	c.SetCookie("token", token, 3600*24*7, "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
 }
 
-
-func (q* AuthController) Signup(c *gin.Context) {
+func (q *AuthController) Signup(c *gin.Context) {
 	var reqBody RequestBody
 	var email string
 	var err error
@@ -64,38 +62,38 @@ func (q* AuthController) Signup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	err= q.db.QueryRow("SELECT id FROM users WHERE email = ?", reqBody.Email).Scan(&email)
-	if err!=sql.ErrNoRows{
-		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
+	err = q.db.QueryRow("SELECT id FROM users WHERE email = ?", reqBody.Email).Scan(&email)
+	if err != sql.ErrNoRows {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	hash,err:=HashPassword(reqBody.Password)
-	if err!=nil{
-		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
+	hash, err := HashPassword(reqBody.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	_,err=q.db.Exec("INSERT INTO users (email,password) VALUES (?,?)",reqBody.Email,hash)
-	if err!=nil{
-		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
+	_, err = q.db.Exec("INSERT INTO users (email,password) VALUES (?,?)", reqBody.Email, hash)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 
-	token,err:=GenerateToken(email)
-	if err!=nil{
-		c.JSON(http.StatusInternalServerError,gin.H{"error": "Internal server error"})
+	token, err := GenerateToken(email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 	c.SetCookie("token", token, 3600*24*7, "/", "", true, true)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Signup successful","Email":email})
+	c.JSON(http.StatusOK, gin.H{"message": "Signup successful", "Email": email})
 }
 
-func HashPassword(password string) (string,error){
-	bytes,err:=bcrypt.GenerateFromPassword([]byte(password),bcrypt.DefaultCost)
-	return string(bytes),err
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
 }
 
-func CheckHashPassword(password string,hash string) bool{
-	err:=bcrypt.CompareHashAndPassword([]byte(hash),[]byte(password))
-	return err==nil
+func CheckHashPassword(password string, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
