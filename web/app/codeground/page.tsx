@@ -1,15 +1,25 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import NewPlayground from "@/components/new-playground";
 import { Card } from "@/components/ui/card";
-import { Plus, FolderGit2 } from "lucide-react";
+import { FolderGit2 } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
   const codegrounds = [
-    { id: 1, name: "React Todo App", language: "TypeScript", lastEdited: "2 hours ago" },
+    {
+      id: 1,
+      name: "React Todo App",
+      language: "TypeScript",
+      lastEdited: "2 hours ago",
+    },
     { id: 2, name: "Python API", language: "Python", lastEdited: "1 day ago" },
-    { id: 3, name: "Portfolio Website", language: "JavaScript", lastEdited: "3 days ago" },
+    {
+      id: 3,
+      name: "Portfolio Website",
+      language: "JavaScript",
+      lastEdited: "3 days ago",
+    },
   ];
 
   return (
@@ -17,10 +27,7 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold">My Codegrounds</h1>
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            New Codeground
-          </Button>
+          <NewPlayground />
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -31,9 +38,13 @@ export default function DashboardPage() {
                   <div className="space-y-1">
                     <FolderGit2 className="w-8 h-8 text-primary mb-2" />
                     <h2 className="font-semibold">{codeground.name}</h2>
-                    <p className="text-sm text-muted-foreground">{codeground.language}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {codeground.language}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{codeground.lastEdited}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {codeground.lastEdited}
+                  </p>
                 </div>
               </Card>
             </Link>
