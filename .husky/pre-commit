@@ -1,0 +1,12 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "Running Go and Next.js formatting..."
+
+# Format Go files (inside the server folder)
+cd server && go fmt ./... && cd ..
+
+# Format Next.js files (inside the web folder)
+npx prettier --write "web/app/**/*.{js,jsx,ts,tsx}" "web/components/**/*.{js,jsx,ts,tsx}" "web/lib/**/*.{js,jsx,ts,tsx}" "web/providers/**/*.{js,jsx,ts,tsx}"
+
+echo "Formatting complete!"

@@ -9,6 +9,7 @@ import (
 func AuthMiddleware(c* gin.Context) {
 	var err error
 	token,err:=c.Cookie("token")
+	
 	if (err!=nil || token=="" || controller.VerifyToken(token)!=nil ){
 		c.JSON(401,gin.H{"error": "Unauthorized"})
 		c.Abort()
