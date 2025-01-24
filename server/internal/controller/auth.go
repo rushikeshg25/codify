@@ -13,7 +13,7 @@ type AuthController struct {
 	db *sql.DB
 }
 
-type RequestBody struct {
+type authRequestBody struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
@@ -25,12 +25,12 @@ func NewAuthController(db *sql.DB) *AuthController {
 }
 
 func (q *AuthController) Login(c *gin.Context) {
-	var reqBody RequestBody
+	var reqBody authRequestBody
 	var email string
 	var id int
 	var password string
 	if err := c.BindJSON(&reqBody); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization failed"})
 		return
 	}
 
@@ -55,7 +55,7 @@ func (q *AuthController) Login(c *gin.Context) {
 }
 
 func (q *AuthController) Signup(c *gin.Context) {
-	var reqBody RequestBody
+	var reqBody authRequestBody
 	var email string
 	var err error
 	if err = c.BindJSON(&reqBody); err != nil {
