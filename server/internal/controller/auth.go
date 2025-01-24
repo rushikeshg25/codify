@@ -88,6 +88,11 @@ func (q *AuthController) Signup(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Signup successful", "Email": email})
 }
 
+func (q *AuthController) Logout(c *gin.Context) {
+	c.SetCookie("token", "", -1, "/", "", true, true)
+	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
+}
+
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err

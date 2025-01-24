@@ -28,6 +28,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	{
 		api.POST("/login", authController.Login)
 		api.POST("/signup", authController.Signup)
+		api.POST("/logout", authController.Logout)
 		playground := api.Group("/playground")
 		playground.Use(middleware.AuthMiddleware)
 		{
