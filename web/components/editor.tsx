@@ -1,6 +1,5 @@
 "use client";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
 import Editor from "@monaco-editor/react";
 
 interface EditorProps {
