@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type requestBody struct {
@@ -25,6 +26,7 @@ type codeground struct {
 
 type CodegroundController struct {
 	db *sql.DB
+	queue *amqp.Connection
 }
 
 const (
@@ -32,9 +34,10 @@ const (
 	NODE  codegroundType = "NODE"
 )
 
-func NewCodegroundController(db *sql.DB) *CodegroundController {
+func NewCodegroundController(db *sql.DB,conn *amqp.Connection) *CodegroundController {
 	return &CodegroundController{
 		db: db,
+		queue: conn,
 	}
 }
 
@@ -96,6 +99,9 @@ func (q *CodegroundController) CreatePlayground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
+
+	
+
 	c.JSON(http.StatusCreated, gin.H{"codeground_id": codegroundID})
 
 }

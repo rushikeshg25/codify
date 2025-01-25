@@ -8,6 +8,7 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"server/internal/database"
 )
@@ -15,14 +16,15 @@ import (
 type Server struct {
 	port       int
 	dbInstance database.Service
+	queue      *amqp.Connection
 }
 
 func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	NewServer := &Server{
 		port: port,
-
 		dbInstance: database.New(),
+		queue: InitQueue(),
 	}
 
 	server := &http.Server{
