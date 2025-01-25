@@ -103,38 +103,13 @@ func (q *CodegroundController) CreatePlayground(c *gin.Context) {
 func (q *CodegroundController) GetPlayground(c *gin.Context) {
 	codegroundId := c.Param("codegroundId")
 	var codeground codeground
-	
-    if codegroundId == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
-        return
-    }
 
-    err := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
-        Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
+	if codegroundId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
+		return
+	}
 
-    if err != nil {
-        if err == sql.ErrNoRows {
-            c.JSON(http.StatusNotFound, gin.H{"error": "Playground not found"})
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-        }
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{"data": codeground})
-}
-
-func (q *CodegroundController) UpdatePlayground(c *gin.Context) {
-	var reqbody requestBody
-	codegroundId := c.Param("codegroundId")
-	var codeground codeground
-	var err error
-	
-    if codegroundId == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
-        return
-    }
-	err=q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
+	err := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
 		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
 
 	if err != nil {
@@ -145,7 +120,32 @@ func (q *CodegroundController) UpdatePlayground(c *gin.Context) {
 		}
 		return
 	}
-	err=c.BindJSON(&reqbody)
+
+	c.JSON(http.StatusOK, gin.H{"data": codeground})
+}
+
+func (q *CodegroundController) UpdatePlayground(c *gin.Context) {
+	var reqbody requestBody
+	codegroundId := c.Param("codegroundId")
+	var codeground codeground
+	var err error
+
+	if codegroundId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
+		return
+	}
+	err = q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
+		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Playground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+	err = c.BindJSON(&reqbody)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -155,23 +155,23 @@ func (q *CodegroundController) UpdatePlayground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 
-    }
-    c.JSON(http.StatusOK, gin.H{"data": codeground})
+	}
+	c.JSON(http.StatusOK, gin.H{"data": codeground})
 }
 
 func (q *CodegroundController) DeletePlayground(c *gin.Context) {
 	codegroundId := c.Param("codegroundId")
 	var err error
-	
-    if codegroundId == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
-        return
-    }
+
+	if codegroundId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
+		return
+	}
 	_, err = q.db.Exec("DELETE FROM codegrounds WHERE id = ?", codegroundId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 
-    }
-    c.JSON(http.StatusOK, gin.H{"data": nil})
+	}
+	c.JSON(http.StatusOK, gin.H{"data": nil})
 }
