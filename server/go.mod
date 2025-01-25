@@ -11,6 +11,8 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.35.0
 )
 
+require github.com/rabbitmq/amqp091-go v1.10.0 // indirect
+
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
