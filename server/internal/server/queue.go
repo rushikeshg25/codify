@@ -8,8 +8,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-
-
 func failOnError(err error, msg string) {
 	if err != nil {
 		log.Panicf("%s: %s", msg, err)
@@ -26,12 +24,12 @@ func InitQueue() *amqp.Connection {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		"codeground-queue", 
-		false,   // durable
-		false,   // delete when unused
-		false,   // exclusive
-		false,   // no-wait
-		nil,     // arguments
+		"codeground-queue",
+		false, // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

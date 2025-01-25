@@ -25,7 +25,7 @@ type codeground struct {
 }
 
 type CodegroundController struct {
-	db *sql.DB
+	db    *sql.DB
 	queue *amqp.Connection
 }
 
@@ -34,9 +34,9 @@ const (
 	NODE  codegroundType = "NODE"
 )
 
-func NewCodegroundController(db *sql.DB,conn *amqp.Connection) *CodegroundController {
+func NewCodegroundController(db *sql.DB, conn *amqp.Connection) *CodegroundController {
 	return &CodegroundController{
-		db: db,
+		db:    db,
 		queue: conn,
 	}
 }
@@ -99,8 +99,6 @@ func (q *CodegroundController) CreatePlayground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-
-	
 
 	c.JSON(http.StatusCreated, gin.H{"codeground_id": codegroundID})
 
