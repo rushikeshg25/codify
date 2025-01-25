@@ -2,7 +2,6 @@ package controller
 
 import (
 	"database/sql"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +34,6 @@ func (q *AuthController) Login(c *gin.Context) {
 	}
 
 	err := q.db.QueryRow("SELECT * FROM users WHERE email = ?", reqBody.Email).Scan(&id, &email, &password)
-	log.Println(id, email, password)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -45,7 +43,7 @@ func (q *AuthController) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := GenerateToken(email)
+	token, err := GenerateToken(email, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -72,13 +70,17 @@ func (q *AuthController) Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	_, err = q.db.Exec("INSERT INTO users (email,password) VALUES (?,?)", reqBody.Email, hash)
+	data, err := q.db.Exec("INSERT INTO users (email,password) VALUES (?,?)", reqBody.Email, hash)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-
-	token, err := GenerateToken(email)
+	userID, err := data.LastInsertId()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	token, err := GenerateToken(email, int(userID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return

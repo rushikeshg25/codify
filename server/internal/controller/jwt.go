@@ -10,12 +10,12 @@ import (
 
 type Claims struct {
 	userId int
-	Email string
+	Email  string
 	jwt.StandardClaims
 }
 
 type userData struct {
-	Id   int
+	Id    int
 	Email string
 }
 
@@ -28,7 +28,7 @@ func init() {
 func GenerateToken(email string, userId int) (string, error) {
 	expirationTime := time.Now().Add(time.Hour * 24 * 7)
 	claims := &Claims{
-		Email: email,
+		Email:  email,
 		userId: userId,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
@@ -70,7 +70,7 @@ func GetUserDataFromToken(tokenString string) (userData, error) {
 		return userData{}, fmt.Errorf("invalid token")
 	}
 	return userData{
-		Id:   claims.userId,
+		Id:    claims.userId,
 		Email: claims.Email,
 	}, nil
 }
