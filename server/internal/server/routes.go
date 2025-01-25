@@ -34,9 +34,9 @@ func (s *Server) RegisterRoutes() http.Handler {
 		{
 			playground.GET("/", CodegroundController.GetPlaygrounds)
 			playground.POST("/", CodegroundController.CreatePlayground)
-			playground.GET("/:playGroundId", CodegroundController.GetPlayground)
-			playground.PUT("/:playGroundId", CodegroundController.UpdatePlayground)
-			playground.DELETE("/:playGroundId", CodegroundController.DeletePlayground)
+			playground.GET("/:codegroundId", CodegroundController.GetPlayground)
+			playground.PUT("/:codegroundId", CodegroundController.UpdatePlayground)
+			playground.DELETE("/:codegroundId", CodegroundController.DeletePlayground)
 			//prob a start codeground
 			//prob a end codeground
 			//prob get status of codeground
