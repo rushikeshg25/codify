@@ -17,13 +17,14 @@ func AuthMiddleware(c *gin.Context) {
 	}
 	_, exists := c.Get("Email")
 	if !exists {
-		email, err := controller.GetEmailFromToken(token)
+		userData, err := controller.GetUserDataFromToken(token)
 		if err != nil {
 			c.JSON(401, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
 		}
-		c.Set("Email", email)
+		c.Set("userId", userData.Id)
+		c.Set("email", userData.Email)
 	}
 	c.Next()
 }

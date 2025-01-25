@@ -9,8 +9,14 @@ import (
 )
 
 type Claims struct {
+	userId int
 	Email string
 	jwt.StandardClaims
+}
+
+type userData struct {
+	Id   int
+	Email string
 }
 
 var jwtSecret []byte
@@ -19,10 +25,11 @@ func init() {
 	jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 }
 
-func GenerateToken(email string) (string, error) {
+func GenerateToken(email string, userId int) (string, error) {
 	expirationTime := time.Now().Add(time.Hour * 24 * 7)
 	claims := &Claims{
 		Email: email,
+		userId: userId,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 			IssuedAt:  time.Now().Unix(),
@@ -51,16 +58,19 @@ func VerifyToken(tokenString string) error {
 	return nil
 }
 
-func GetEmailFromToken(tokenString string) (string, error) {
+func GetUserDataFromToken(tokenString string) (userData, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
 	})
 	if err != nil {
-		return "", err
+		return userData{}, err
 	}
 	if !token.Valid {
-		return "", fmt.Errorf("invalid token")
+		return userData{}, fmt.Errorf("invalid token")
 	}
-	return claims.Email, nil
+	return userData{
+		Id:   claims.userId,
+		Email: claims.Email,
+	}, nil
 }
