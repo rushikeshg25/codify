@@ -24,9 +24,14 @@ type codeground struct {
 	updatedAt       time.Time
 }
 
+type QueueMessage struct {
+	Codeground *codeground `json:"codeground"`
+	Msg        string      `json:"msg"` // Possible values: "start", "stop", "create", "update", "delete"
+}
+
 type CodegroundController struct {
-	db    *sql.DB
-	queue *amqp.Connection
+	db *sql.DB      // Database connection
+	ch *amqp.Channel // RabbitMQ channel
 }
 
 const (
@@ -34,10 +39,10 @@ const (
 	NODE  codegroundType = "NODE"
 )
 
-func NewCodegroundController(db *sql.DB, conn *amqp.Connection) *CodegroundController {
+
+func NewCodegroundController(db *sql.DB) *CodegroundController {
 	return &CodegroundController{
-		db:    db,
-		queue: conn,
+		db: db,
 	}
 }
 

@@ -21,7 +21,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 	db := s.dbInstance.GetDb()
 
 	authController := controller.NewAuthController(db)
-	CodegroundController := controller.NewCodegroundController(db, s.queue)
+	CodegroundController := controller.NewCodegroundController(db)
 
 	r.GET("/health", s.healthHandler)
 	api := r.Group("/api")
@@ -49,3 +49,5 @@ func (s *Server) RegisterRoutes() http.Handler {
 func (s *Server) healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, s.dbInstance.Health())
 }
+
+
