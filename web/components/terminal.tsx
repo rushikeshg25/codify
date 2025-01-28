@@ -27,6 +27,11 @@ export function Terminal() {
     }
 
     socket.on("terminal:data", onTerminalData);
+    return () => {
+      socket.off("terminal:data", onTerminalData);
+      term.dispose();
+      isRendered.current = false;
+    };
   }, []);
   return (
     <div className="h-full flex flex-col border-t">
