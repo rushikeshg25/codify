@@ -50,6 +50,7 @@ func (q *CodegroundController) GetPlaygrounds(c *gin.Context) {
 	var codegrounds []codeground
 	var err error
 	userId, Exists := c.Get("userId")
+	
 	if !Exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
 		return

@@ -28,12 +28,13 @@ func (q *AuthController) Login(c *gin.Context) {
 	var email string
 	var id int
 	var password string
+	var createdAt []uint8
+	
 	if err := c.BindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization failed"})
 		return
 	}
-
-	err := q.db.QueryRow("SELECT * FROM users WHERE email = ?", reqBody.Email).Scan(&id, &email, &password)
+	err := q.db.QueryRow("SELECT * FROM users WHERE email = ?", reqBody.Email).Scan(&id, &email, &password, &createdAt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -42,7 +43,6 @@ func (q *AuthController) Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 		return
 	}
-
 	token, err := GenerateToken(email, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -87,7 +87,7 @@ func (q *AuthController) Signup(c *gin.Context) {
 	}
 	c.SetCookie("token", token, 3600*24*7, "/", "", true, true)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Signup successful", "Email": email})
+	c.JSON(http.StatusOK, gin.H{"message": "Signup successful", "Email": reqBody.Email})
 }
 
 func (q *AuthController) Logout(c *gin.Context) {
