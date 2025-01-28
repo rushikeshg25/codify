@@ -36,7 +36,7 @@ ptyProcess.onData((data) => {
 
 io.on("connection", (socket) => {
   console.log(`Socket connected`, socket.id);
-
+  console.log(`Total connected clients: ${io.engine.clientsCount}`);
   socket.emit("file:refresh");
 
   socket.on("file:change", async ({ path, content }) => {
@@ -44,8 +44,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("terminal:write", (data) => {
-    console.log("Term", data);
     ptyProcess.write(data);
+  });
+
+  socket.on("terminal:init", () => {
+    socket.emit("terminal:data", "\r$ ");
   });
 });
 
@@ -62,10 +65,16 @@ app.get("/files/content", async (req, res) => {
 
 server.listen(9000, () => console.log(`server running on port 9000`));
 
-async function generateFileTree(directory) {
-  const tree = {};
+let idCounter = 0;
 
-  async function buildTree(currentDir, currentTree) {
+async function generateFileTree(directory) {
+  const tree = {
+    name: path.basename(directory),
+    _id: idCounter++,
+    children: [],
+  };
+
+  async function buildTree(currentDir, currentNode) {
     const files = await fs.readdir(currentDir);
 
     for (const file of files) {
@@ -73,10 +82,11 @@ async function generateFileTree(directory) {
       const stat = await fs.stat(filePath);
 
       if (stat.isDirectory()) {
-        currentTree[file] = {};
-        await buildTree(filePath, currentTree[file]);
+        const childNode = { name: file, _id: idCounter++, children: [] };
+        currentNode.children.push(childNode);
+        await buildTree(filePath, childNode);
       } else {
-        currentTree[file] = null;
+        currentNode.children.push({ name: file, _id: idCounter++ });
       }
     }
   }
