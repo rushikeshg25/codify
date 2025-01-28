@@ -29,14 +29,14 @@ func (s *Server) RegisterRoutes() http.Handler {
 		api.POST("/login", authController.Login)
 		api.POST("/signup", authController.Signup)
 		api.POST("/logout", authController.Logout)
-		playground := api.Group("/playground")
-		playground.Use(middleware.AuthMiddleware)
+		codeground := api.Group("/codeground")
+		codeground.Use(middleware.AuthMiddleware)
 		{
-			playground.GET("/", CodegroundController.GetPlaygrounds)
-			playground.POST("/", CodegroundController.CreatePlayground)
-			playground.GET("/:codegroundId", CodegroundController.GetPlayground)
-			playground.PUT("/:codegroundId", CodegroundController.UpdatePlayground)
-			playground.DELETE("/:codegroundId", CodegroundController.DeletePlayground)
+			codeground.GET("/", CodegroundController.GetCodegrounds)
+			codeground.POST("/", CodegroundController.CreateCodeground)
+			codeground.GET("/:codegroundId", CodegroundController.GetCodeground)
+			codeground.PUT("/:codegroundId", CodegroundController.UpdateCodeground)
+			codeground.DELETE("/:codegroundId", CodegroundController.DeleteCodeground)
 			//prob a start codeground
 			//prob a end codeground
 			//prob get status of codeground

@@ -46,7 +46,7 @@ func NewCodegroundController(db *sql.DB) *CodegroundController {
 	}
 }
 
-func (q *CodegroundController) GetPlaygrounds(c *gin.Context) {
+func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 	var codegrounds []codeground
 	var err error
 	userId, Exists := c.Get("userId")
@@ -80,7 +80,7 @@ func (q *CodegroundController) GetPlaygrounds(c *gin.Context) {
 
 }
 
-func (q *CodegroundController) CreatePlayground(c *gin.Context) {
+func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 	var reqbody requestBody
 	var err error
 	userId, Exists := c.Get("userId")
@@ -110,7 +110,7 @@ func (q *CodegroundController) CreatePlayground(c *gin.Context) {
 
 }
 
-func (q *CodegroundController) GetPlayground(c *gin.Context) {
+func (q *CodegroundController) GetCodeground(c *gin.Context) {
 	codegroundId := c.Param("codegroundId")
 	var codeground codeground
 
@@ -134,7 +134,7 @@ func (q *CodegroundController) GetPlayground(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": codeground})
 }
 
-func (q *CodegroundController) UpdatePlayground(c *gin.Context) {
+func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 	var reqbody requestBody
 	codegroundId := c.Param("codegroundId")
 	var codeground codeground
@@ -169,7 +169,7 @@ func (q *CodegroundController) UpdatePlayground(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": codeground})
 }
 
-func (q *CodegroundController) DeletePlayground(c *gin.Context) {
+func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
 	codegroundId := c.Param("codegroundId")
 	var err error
 
