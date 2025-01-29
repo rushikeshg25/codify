@@ -90,7 +90,6 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	
 	err = c.BindJSON(&reqbody)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})

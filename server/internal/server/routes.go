@@ -16,6 +16,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 		AllowOrigins:     []string{"http://localhost:3000"}, 
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true, 
 	}))
 	db := s.dbInstance.GetDb()
@@ -32,8 +33,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 		codeground := api.Group("/codeground")
 		codeground.Use(middleware.AuthMiddleware)
 		{
-			codeground.GET("/", CodegroundController.GetCodegrounds)
-			codeground.POST("/", CodegroundController.CreateCodeground)
+			codeground.GET("", CodegroundController.GetCodegrounds)
+			codeground.POST("", CodegroundController.CreateCodeground)
 			codeground.GET("/:codegroundId", CodegroundController.GetCodeground)
 			codeground.PUT("/:codegroundId", CodegroundController.UpdateCodeground)
 			codeground.DELETE("/:codegroundId", CodegroundController.DeleteCodeground)
