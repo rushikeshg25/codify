@@ -48,7 +48,7 @@ func (q *AuthController) Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	c.SetCookie("token", token, 3600*24*7, "/", "", true, true)
+	c.SetCookie("token", token, 3600*24*7, "/", "", false, true)
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
 }
 
@@ -85,13 +85,13 @@ func (q *AuthController) Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	c.SetCookie("token", token, 3600*24*7, "/", "", true, true)
+	c.SetCookie("token", token, 3600*24*7, "/", "", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Signup successful", "Email": reqBody.Email})
 }
 
 func (q *AuthController) Logout(c *gin.Context) {
-	c.SetCookie("token", "", -1, "/", "", true, true)
+	c.SetCookie("token", "", -1, "/", "", false, true)
 	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 
