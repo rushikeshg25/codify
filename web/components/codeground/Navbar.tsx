@@ -1,10 +1,19 @@
-import React from "react";
+"use client";
 import { Button } from "@/components/ui/button";
-
 import { Files, Play, Settings } from "lucide-react";
 import { ModeToggle } from "../ModeToggle";
+import api from "@/lib/api";
+import toast from "react-hot-toast";
 
 const Navbar = () => {
+  const LogoutHandler = async () => {
+    try {
+      await api.post("/logout");
+      toast.success("Logged out successfully");
+    } catch (error) {
+      toast.error(error as string);
+    }
+  };
   return (
     <div className="border-b p-2 flex justify-between items-center bg-background">
       <div className="flex items-center gap-2">
@@ -23,6 +32,7 @@ const Navbar = () => {
         </Button>
 
         <ModeToggle />
+        <Button onClick={LogoutHandler}></Button>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React from "react";
+"use client";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import {
@@ -21,8 +21,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useState } from "react";
+import toast from "react-hot-toast";
+import api from "@/lib/api";
 
-const NewPlayground = () => {
+const NewCodeground = () => {
+  const [name, setName] = useState("");
+  const [type, setType] = useState("");
+
+  const submitHandler = async () => {
+    if (!name || !type) {
+      return toast.error("Please fill all the fields");
+    }
+    const res = await api.post("/codeground", {
+      name,
+      codeground_type: type,
+    });
+    console.log(res);
+    toast.success("Codeground created successfully");
+  };
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -35,35 +52,41 @@ const NewPlayground = () => {
         <AlertDialogHeader>
           <AlertDialogTitle>New Codeground</AlertDialogTitle>
           <AlertDialogDescription className="flex flex-col gap-5">
-            <form>
+            <div>
               <div className="grid w-full items-center gap-4">
                 <div className="flex flex-col space-y-1.5">
                   <Label htmlFor="name">Name</Label>
-                  <Input id="name" placeholder="Name your Codeground" />
+                  <Input
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Name your Codeground"
+                  />
                 </div>
                 <div className="flex flex-col space-y-1.5">
                   <Label htmlFor="type">Type</Label>
-                  <Select>
+                  <Select
+                    onValueChange={(value) => setType(value)}
+                    value={type}
+                  >
                     <SelectTrigger id="type">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
                     <SelectContent position="popper">
-                      <SelectItem value="next">Node</SelectItem>
-                      <SelectItem value="sveltekit">React</SelectItem>
+                      <SelectItem value="NODE">Node</SelectItem>
+                      <SelectItem value="REACT">React</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-            </form>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction>Create</AlertDialogAction>
+          <AlertDialogAction onClick={submitHandler}>Create</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 };
 
-export default NewPlayground;
+export default NewCodeground;
