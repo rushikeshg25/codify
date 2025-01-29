@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import axios from "axios";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,12 +15,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { LoginFormValues, loginSchema } from "@/types/auth";
-import { loginUser } from "@/actions/login";
+import api from "@/lib/api";
 
 export default function LoginPage() {
   const [error, setError] = useState<string | undefined>("");
 
-  // Initialize form with react-hook-form and zod resolver
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -32,13 +30,10 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      const result = await loginUser(data);
-      if (!result.success) {
-        setError(result.error);
-      } else {
-        // Handle successful login
-        console.log("Login successful:", result.data);
-      }
+      const result = await api.post("/login", {
+        email: data.email,
+        password: data.password,
+      });
     } catch (error) {
       setError("An unexpected error occurred");
     }

@@ -3,11 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import axios from "axios";
+import api from "@/lib/api";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import {
   Form,
   FormControl,
@@ -17,7 +16,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { SignupFormValues, signupSchema } from "@/types/auth";
-import { signupUser } from "@/actions/signup";
 
 export default function SignupPage() {
   const [error, setError] = useState<string | undefined>("");
@@ -33,12 +31,10 @@ export default function SignupPage() {
 
   const onSubmit = async (data: SignupFormValues) => {
     try {
-      const result = await signupUser(data);
-      if (!result.success) {
-        setError(result.error);
-      } else {
-        console.log("Signup successful:", result.data);
-      }
+      const result = await api.post("/signup", {
+        email: data.email,
+        password: data.password,
+      });
     } catch (error) {
       setError("An unexpected error occurred");
     }
