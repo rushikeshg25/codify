@@ -9,16 +9,15 @@ import (
 )
 
 type Claims struct {
-	userId int
-	Email  string
-	jwt.StandardClaims
+    UserId int    `json:"userId"` 
+    Email  string `json:"email"`
+    jwt.StandardClaims
 }
 
 type userData struct {
-	Id    int
-	Email string
+    Id    int
+    Email string
 }
-
 var jwtSecret []byte
 
 func init() {
@@ -29,7 +28,7 @@ func GenerateToken(email string, userId int) (string, error) {
 	expirationTime := time.Now().Add(time.Hour * 24 * 7)
 	claims := &Claims{
 		Email:  email,
-		userId: userId,
+		UserId: userId,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 			IssuedAt:  time.Now().Unix(),
@@ -70,7 +69,7 @@ func GetUserDataFromToken(tokenString string) (userData, error) {
 		return userData{}, fmt.Errorf("invalid token")
 	}
 	return userData{
-		Id:    claims.userId,
+		Id:    claims.UserId,
 		Email: claims.Email,
 	}, nil
 }

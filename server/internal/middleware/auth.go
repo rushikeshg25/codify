@@ -23,6 +23,7 @@ func AuthMiddleware(c *gin.Context) {
 			c.Abort()
 			return
 		}
+		
 		c.Set("userId", userData.Id)
 		c.Set("email", userData.Email)
 	}

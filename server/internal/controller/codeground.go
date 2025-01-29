@@ -2,10 +2,12 @@ package controller
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -88,23 +90,24 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-
+	
 	err = c.BindJSON(&reqbody)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-
-	data, err := q.db.Exec("INSERT INTO codegrounds(id,name,type,user_id) VALUES(?,?,?)", reqbody.Name, reqbody.Type, userId)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
-	}
-	codegroundID, err := data.LastInsertId()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
-	}
+	codegroundID := uuid.New().String()
+	_, err = q.db.Exec(
+        "INSERT INTO codegrounds(id, name, codeground_type, user_id) VALUES(?, ?, ?, ?)",
+        codegroundID, 
+        reqbody.Name,
+        reqbody.Type,
+        userId,
+    )
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+        return
+    }
 
 	c.JSON(http.StatusCreated, gin.H{"codeground_id": codegroundID})
 
@@ -119,19 +122,15 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 		return
 	}
 
-	err := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
+	row := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
 		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Playground not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
-		}
-		return
+		fmt.Println(codeground)
+	if row == nil {
+			c.JSON(200, gin.H{"error": "No Codegrounds"})
+			return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": codeground})
+	c.JSON(http.StatusOK, gin.H{"name":codeground.name,"id":codeground.id,"codeground_type":codeground.codeground_type})
 }
 
 func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
@@ -149,7 +148,7 @@ func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Playground not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		}
