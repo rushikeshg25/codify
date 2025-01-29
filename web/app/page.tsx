@@ -24,12 +24,6 @@ export default function Home() {
                 Start Coding Now
               </Button>
             </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline" className="gap-2">
-                <Github className="w-4 h-4" />
-                Login with GitHub
-              </Button>
-            </Link>
           </div>
         </div>
 
