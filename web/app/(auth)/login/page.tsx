@@ -16,8 +16,11 @@ import {
 } from "@/components/ui/form";
 import { LoginFormValues, loginSchema } from "@/types/auth";
 import api from "@/lib/api";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [error, setError] = useState<string | undefined>("");
 
   const form = useForm<LoginFormValues>({
@@ -34,6 +37,8 @@ export default function LoginPage() {
         email: data.email,
         password: data.password,
       });
+      toast.success("Login successful");
+      router.push("/codeground");
     } catch (error) {
       setError("An unexpected error occurred");
     }

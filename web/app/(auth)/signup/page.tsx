@@ -7,6 +7,7 @@ import api from "@/lib/api";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import {
   Form,
   FormControl,
@@ -16,10 +17,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { SignupFormValues, signupSchema } from "@/types/auth";
+import toast from "react-hot-toast";
 
 export default function SignupPage() {
   const [error, setError] = useState<string | undefined>("");
-
+  const router = useRouter();
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
@@ -35,6 +37,8 @@ export default function SignupPage() {
         email: data.email,
         password: data.password,
       });
+      toast.success("Signup successful");
+      router.push("/codeground");
     } catch (error) {
       setError("An unexpected error occurred");
     }
