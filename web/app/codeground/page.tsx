@@ -1,31 +1,32 @@
 "use client";
 
 import NewCodeground from "@/components/new-codeground";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import api from "@/lib/api";
 import { FolderGit2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { codeground } from "@/types/codeground";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const codegrounds = [
-    {
-      id: 1,
-      name: "React Todo App",
-      language: "TypeScript",
-      lastEdited: "2 hours ago",
-    },
-    { id: 2, name: "Python API", language: "Python", lastEdited: "1 day ago" },
-    {
-      id: 3,
-      name: "Portfolio Website",
-      language: "JavaScript",
-      lastEdited: "3 days ago",
-    },
-  ];
+  // const codegrounds = [
+  //   {
+  //     id: 1,
+  //     name: "React Todo App",
+  //     language: "TypeScript",
+  //     lastEdited: "2 hours ago",
+  //   },
+  //   { id: 2, name: "Python API", language: "Python", lastEdited: "1 day ago" },
+  //   {
+  //     id: 3,
+  //     name: "Portfolio Website",
+  //     language: "JavaScript",
+  //     lastEdited: "3 days ago",
+  //   },
+  // ];
   const LogoutHandler = async () => {
     try {
       await api.post("/logout");
@@ -35,6 +36,21 @@ export default function DashboardPage() {
       toast.error(error as string);
     }
   };
+  const [codegrounds, setCodegrounds] = useState<codeground[]>([]);
+
+  useEffect(() => {
+    const fetchCodegrounds = async () => {
+      try {
+        const response = await api.get("/codeground");
+        setCodegrounds(response.data);
+      } catch (error) {
+        //@ts-ignore
+        toast.error(error.message as string);
+      }
+    };
+    fetchCodegrounds();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -55,11 +71,11 @@ export default function DashboardPage() {
                     <FolderGit2 className="w-8 h-8 text-primary mb-2" />
                     <h2 className="font-semibold">{codeground.name}</h2>
                     <p className="text-sm text-muted-foreground">
-                      {codeground.language}
+                      {codeground.codegroundType}
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {codeground.lastEdited}
+                    {codeground.createdAt.toTimeString()}
                   </p>
                 </div>
               </Card>

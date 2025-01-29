@@ -3,6 +3,7 @@ package controller
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -54,12 +55,14 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 	userId, Exists := c.Get("userId")
 	
 	if !Exists {
+		log.Fatalf("Error: %V",err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
 		return
 	}
 
 	rows, err := q.db.Query("SELECT * FROM codegrounds WHERE user_id = ?", userId)
 	if err != nil {
+		log.Fatalf("Error: %V",err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query failed"})
 		return
 	}
@@ -68,12 +71,14 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 	for rows.Next() {
 		var cg codeground
 		if err := rows.Scan(&cg.id, &cg.userId, &cg.name, &cg.codeground_type, &cg.createdAt, &cg.updatedAt); err != nil {
+			log.Fatalf("Error: %V",err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan row"})
 			return
 		}
 		codegrounds = append(codegrounds, cg)
 	}
 	if err := rows.Err(); err != nil {
+		log.Fatalf("Error: %V",err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating rows"})
 		return
 	}
