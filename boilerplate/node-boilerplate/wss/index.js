@@ -39,8 +39,8 @@ io.on("connection", (socket) => {
   console.log(`Total connected clients: ${io.engine.clientsCount}`);
   socket.emit("file:refresh");
 
-  socket.on("file:change", async ({ path, content }) => {
-    await fs.writeFile(DIR, content);
+  socket.on("file:change", async ({ file, content }) => {
+    await fs.writeFile(fileMap.get(file), content);
   });
 
   socket.on("terminal:write", (data) => {
@@ -55,10 +55,6 @@ io.on("connection", (socket) => {
 app.get("/files", async (req, res) => {
   try {
     const fileTree = await generateFileTree(DIR, fileMap);
-
-    // console.log("Generated file tree:", JSON.stringify(fileTree, null, 2));
-    // console.log(fileMap);
-
     return res.json({ tree: fileTree, fileMap: fileMap });
   } catch (error) {
     console.error("Error generating file tree:", error);
@@ -70,8 +66,9 @@ app.get("/files", async (req, res) => {
 });
 
 app.get("/files/content", async (req, res) => {
-  const path = req.query.path;
-  const content = await fs.readFile(`${DIR}/${path}`, "utf-8");
+  const file = req.query.file;
+  console.log(fileMap.get(file));
+  const content = await fs.readFile(fileMap.get(file), "utf-8");
   return res.json({ content });
 });
 
