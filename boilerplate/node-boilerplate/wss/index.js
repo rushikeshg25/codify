@@ -15,7 +15,7 @@ const ptyProcess = pty.spawn("bash", [], {
   cwd: DIR,
   env: process.env,
 });
-
+const fileMap = new Map();
 const app = express();
 const server = http.createServer(app);
 const io = new SocketServer({
@@ -54,11 +54,12 @@ io.on("connection", (socket) => {
 
 app.get("/files", async (req, res) => {
   try {
-    const fileTree = await generateFileTree(DIR);
+    const fileTree = await generateFileTree(DIR, fileMap);
 
-    console.log("Generated file tree:", JSON.stringify(fileTree, null, 2));
+    // console.log("Generated file tree:", JSON.stringify(fileTree, null, 2));
+    // console.log(fileMap);
 
-    return res.json({ tree: fileTree });
+    return res.json({ tree: fileTree, fileMap: fileMap });
   } catch (error) {
     console.error("Error generating file tree:", error);
     return res.status(500).json({
@@ -76,7 +77,7 @@ app.get("/files/content", async (req, res) => {
 
 server.listen(9000, () => console.log(`server running on port 9000`));
 
-async function generateFileTree(directory) {
+async function generateFileTree(directory, fileMap) {
   const tree = {};
 
   async function buildTree(currentDir, currentTree) {
@@ -91,6 +92,7 @@ async function generateFileTree(directory) {
         await buildTree(filePath, currentTree[file]);
       } else {
         currentTree[file] = null;
+        fileMap.set(file, filePath);
       }
     }
   }
