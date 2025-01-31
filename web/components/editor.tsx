@@ -8,7 +8,6 @@ import "ace-builds/src-noconflict/theme-solarized_dark";
 import "ace-builds/src-noconflict/theme-solarized_light";
 import "ace-builds/src-noconflict/ext-language_tools";
 import { useTheme } from "next-themes";
-import axios from "axios";
 import socket from "@/lib/socket";
 
 interface EditorProps {
