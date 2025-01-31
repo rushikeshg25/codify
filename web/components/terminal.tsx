@@ -1,6 +1,5 @@
 "use client";
 import { Terminal as XTerminal } from "@xterm/xterm";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Terminal as TerminalIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import socket from "@/lib/socket";
@@ -14,7 +13,9 @@ export function Terminal() {
     if (isRendered.current) return;
     isRendered.current = true;
 
-    const term = new XTerminal({});
+    const term = new XTerminal({
+      cursorBlink: true,
+    });
     //@ts-ignore
     term.open(terminalRef.current);
     socket.emit("terminal:init");
@@ -34,12 +35,12 @@ export function Terminal() {
     };
   }, []);
   return (
-    <div className="h-full flex flex-col border-t">
+    <div className="h-full flex flex-col border-t bg-black">
       <div className="flex items-center gap-2 px-4 py-2 border-b bg-card">
         <TerminalIcon className="w-4 h-4" />
         <span className="text-sm font-medium">Terminal</span>
       </div>
-      <div className="pt-4 pl-4 h-full " ref={terminalRef} />
+      <div className="pt-3 pl-3 h-full " ref={terminalRef} />
     </div>
   );
 }

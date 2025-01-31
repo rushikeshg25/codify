@@ -9,7 +9,7 @@ import {
 import { FileTree } from "@/components/codeground/file-tree";
 import { Terminal } from "@/components/terminal";
 import { EditorWindow } from "@/components/editor";
-import Output from "@/components/output";
+import Output from "@/components/webview";
 import Navbar from "@/components/codeground/Navbar";
 import socket from "@/lib/socket";
 import axios from "axios";
