@@ -9,7 +9,7 @@ import {
 import FileTree from "@/components/codeground/Tree";
 import { Terminal } from "@/components/terminal";
 import { EditorWindow } from "@/components/editor";
-import Output from "@/components/output";
+import Webview from "@/components/webview";
 import Navbar from "@/components/codeground/Navbar";
 import socket from "@/lib/socket";
 import axios from "axios";
@@ -19,13 +19,10 @@ interface TreeNode {
 
 export default function CodegroundPage() {
   const [fileTree, setFileTree] = useState<TreeNode>({});
+  const [fileMap, setFileMap] = useState<Map<string, string>>(new Map());
   const [selectedFile, setSelectedFile] = useState("");
-  const [selectedFileContent, setSelectedFileContent] = useState("");
-  const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const isSaved = selectedFileContent === code;
+  const [loading, setLoading] = useState(false);
 
   const getFileTree = useCallback(async () => {
     try {
@@ -33,27 +30,19 @@ export default function CodegroundPage() {
       const response = await axios.get("http://localhost:9000/files");
       if (response.data && response.data.tree) {
         setFileTree(response.data.tree);
+        setFileMap(response.data.map);
       } else {
         setError("Invalid data structure received from server");
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch file tree"
+        err instanceof Error ? err.message : "Failed to fetch file tree",
       );
       console.error("Error fetching file tree:", err);
     } finally {
       setLoading(false);
     }
   }, []);
-
-  // const getFileContents = useCallback(async () => {
-  //   if (!selectedFile) return;
-  //   const response = await fetch(
-  //     `http://localhost:9000/files/content?path=${selectedFile}`
-  //   );
-  //   const result = await response.json();
-  //   setSelectedFileContent(result.content);
-  // }, [selectedFile]);
 
   // useEffect(() => {
   //   if (selectedFile) getFileContents();
@@ -85,7 +74,7 @@ export default function CodegroundPage() {
         <ResizablePanel defaultSize={50}>
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel defaultSize={25}>
-              <EditorWindow file={selectedFile} />
+              <EditorWindow map={fileMap} file={selectedFile} />
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={10}>
@@ -93,12 +82,9 @@ export default function CodegroundPage() {
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>
-
         <ResizableHandle />
-
-        {/* Output */}
         <ResizablePanel defaultSize={20}>
-          <Output />
+          <Webview />
         </ResizablePanel>
       </ResizablePanelGroup>
     </div>
