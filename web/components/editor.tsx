@@ -18,7 +18,7 @@ export function EditorWindow({ file }: EditorProps) {
     <div className="editor">
       {file && (
         <p>
-          {file.replaceAll("/", " > ")} {isSaved ? "Saved" : "Unsaved"}
+          {/* {file.replaceAll("/", " > ")} {isSaved ? "Saved" : "Unsaved"} */}
         </p>
       )}
       <AceEditor

@@ -38,7 +38,7 @@ export default function CodegroundPage() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch file tree",
+        err instanceof Error ? err.message : "Failed to fetch file tree"
       );
       console.error("Error fetching file tree:", err);
     } finally {
@@ -78,7 +78,7 @@ export default function CodegroundPage() {
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         <ResizablePanel defaultSize={10} minSize={10}>
           <div className="h-full border-r">
-            <FileTree data={fileTree} />
+            <FileTree data={fileTree} selectFile={setSelectedFile} />
           </div>
         </ResizablePanel>
         <ResizableHandle />

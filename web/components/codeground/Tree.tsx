@@ -8,9 +8,14 @@ interface TreeNode {
 interface FileTreeProps {
   data: TreeNode;
   defaultExpanded?: boolean;
+  selectFile: (file: string) => void;
 }
 
-const FileTree = ({ data, defaultExpanded = false }: FileTreeProps) => {
+const FileTree = ({
+  data,
+  defaultExpanded = false,
+  selectFile,
+}: FileTreeProps) => {
   if (!data) {
     return null;
   }
@@ -24,6 +29,7 @@ const FileTree = ({ data, defaultExpanded = false }: FileTreeProps) => {
           name={key}
           level={0}
           defaultExpanded={defaultExpanded}
+          selectFile={selectFile}
         />
       ))}
     </div>
@@ -35,30 +41,39 @@ interface TreeNodeProps {
   name: string;
   level: number;
   defaultExpanded: boolean;
+  selectFile: (file: string) => void;
 }
 
-const TreeNode = ({ node, name, level, defaultExpanded }: TreeNodeProps) => {
+const TreeNode = ({
+  node,
+  name,
+  level,
+  defaultExpanded,
+  selectFile,
+}: TreeNodeProps) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   if (name === "node_modules") return null;
 
   const isDirectory = node !== null && typeof node === "object";
-
   const entries = isDirectory && node ? Object.entries(node) : [];
 
-  const handleToggle = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (isDirectory) {
       setIsExpanded(!isExpanded);
+    } else {
+      selectFile(name);
     }
   };
 
   return (
     <div>
       <div
-        className={`flex items-center hover:bg-gray-100 cursor-pointer py-1 px-2 rounded hover:text-gray-800
-          ${isDirectory ? "text-blue-600" : "text-gray-200"}`}
+        className="flex items-center hover:bg-gray-100 cursor-pointer py-1 px-2 rounded
+          text-gray-200 hover:text-gray-800"
         style={{ paddingLeft: `${level * 16}px` }}
-        onClick={handleToggle}
+        onClick={handleClick}
       >
         {isDirectory ? (
           <>
@@ -92,6 +107,7 @@ const TreeNode = ({ node, name, level, defaultExpanded }: TreeNodeProps) => {
               name={childName}
               level={level + 1}
               defaultExpanded={defaultExpanded}
+              selectFile={selectFile}
             />
           ))}
         </div>
