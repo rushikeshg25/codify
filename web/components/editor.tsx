@@ -22,6 +22,23 @@ export function EditorWindow({ file, map }: EditorProps) {
   const [selectedFileContent, setSelectedFileContent] = useState("");
   const isSaved = selectedFileContent === code;
 
+  const handleSaveShortcut = useCallback((event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+      event.preventDefault();
+      socket.emit("file:change", {
+        file: file,
+        content: code,
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => {
+      window.removeEventListener("keydown", handleSaveShortcut);
+    };
+  }, [handleSaveShortcut]);
+
   useEffect(() => {
     setCode(selectedFileContent);
   }, [selectedFileContent]);
