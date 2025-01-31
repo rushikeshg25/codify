@@ -53,8 +53,19 @@ io.on("connection", (socket) => {
 });
 
 app.get("/files", async (req, res) => {
-  const fileTree = await generateFileTree(DIR);
-  return res.json({ tree: fileTree });
+  try {
+    const fileTree = await generateFileTree(DIR);
+
+    console.log("Generated file tree:", JSON.stringify(fileTree, null, 2));
+
+    return res.json({ tree: fileTree });
+  } catch (error) {
+    console.error("Error generating file tree:", error);
+    return res.status(500).json({
+      error: "Failed to generate file tree",
+      details: error.message,
+    });
+  }
 });
 
 app.get("/files/content", async (req, res) => {
@@ -65,16 +76,10 @@ app.get("/files/content", async (req, res) => {
 
 server.listen(9000, () => console.log(`server running on port 9000`));
 
-let idCounter = 0;
-
 async function generateFileTree(directory) {
-  const tree = {
-    name: path.basename(directory),
-    _id: idCounter++,
-    children: [],
-  };
+  const tree = {};
 
-  async function buildTree(currentDir, currentNode) {
+  async function buildTree(currentDir, currentTree) {
     const files = await fs.readdir(currentDir);
 
     for (const file of files) {
@@ -82,11 +87,10 @@ async function generateFileTree(directory) {
       const stat = await fs.stat(filePath);
 
       if (stat.isDirectory()) {
-        const childNode = { name: file, _id: idCounter++, children: [] };
-        currentNode.children.push(childNode);
-        await buildTree(filePath, childNode);
+        currentTree[file] = {};
+        await buildTree(filePath, currentTree[file]);
       } else {
-        currentNode.children.push({ name: file, _id: idCounter++ });
+        currentTree[file] = null;
       }
     }
   }
