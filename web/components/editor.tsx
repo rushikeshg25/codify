@@ -1,23 +1,34 @@
 "use client";
 
-import Editor from "@monaco-editor/react";
+import { getFileType } from "@/lib/fileType";
+import { useState } from "react";
+import AceEditor from "react-ace";
+import "ace-builds/src-noconflict/mode-javascript";
+import "ace-builds/src-noconflict/theme-github";
+import "ace-builds/src-noconflict/ext-language_tools";
 
 interface EditorProps {
   file: string;
 }
 
 export function EditorWindow({ file }: EditorProps) {
+  const [code, setCode] = useState("");
+
   return (
-    <Editor
-      className="h-full"
-      options={{
-        fontSize: 18,
-      }}
-      height="100%"
-      defaultLanguage="typescript"
-      value="import React from 'react';
-      export default function App() {\nreturn (\n<div>\n<h1>Hello, Codify!</h1>\n</div>\n);}\n"
-    />
+    <div className="editor">
+      {file && (
+        <p>
+          {file.replaceAll("/", " > ")} {isSaved ? "Saved" : "Unsaved"}
+        </p>
+      )}
+      <AceEditor
+        width="100%"
+        theme="github"
+        mode={getFileType({ selectedFile: file })}
+        value={code}
+        onChange={(e) => setCode(e)}
+      />
+    </div>
   );
 }
 

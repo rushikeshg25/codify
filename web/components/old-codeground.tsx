@@ -6,45 +6,49 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
-import FileTree from "@/components/codeground/Tree";
+import { FileTree } from "@/components/codeground/file-tree";
 import { Terminal } from "@/components/terminal";
 import { EditorWindow } from "@/components/editor";
 import Output from "@/components/output";
 import Navbar from "@/components/codeground/Navbar";
 import socket from "@/lib/socket";
 import axios from "axios";
-interface TreeNode {
-  [key: string]: TreeNode | null;
-}
 
 export default function CodegroundPage() {
-  const [fileTree, setFileTree] = useState<TreeNode>({});
+  const [fileTree, setFileTree] = useState({});
   const [selectedFile, setSelectedFile] = useState("");
   const [selectedFileContent, setSelectedFileContent] = useState("");
   const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const isSaved = selectedFileContent === code;
 
-  const getFileTree = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get("http://localhost:9000/files");
-      if (response.data && response.data.tree) {
-        setFileTree(response.data.tree);
-      } else {
-        setError("Invalid data structure received from server");
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch file tree",
-      );
-      console.error("Error fetching file tree:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // useEffect(() => {
+  //   if (!isSaved && code) {
+  //     const timer = setTimeout(() => {
+  //       socket.emit("file:change", {
+  //         path: selectedFile,
+  //         content: code,
+  //       });
+  //     }, 5 * 1000);
+  //     return () => {
+  //       clearTimeout(timer);
+  //     };
+  //   }
+  // }, [code, selectedFile, isSaved]);
+
+  // useEffect(() => {
+  //   setCode("");
+  // }, [selectedFile]);
+
+  // useEffect(() => {
+  //   setCode(selectedFileContent);
+  // }, [selectedFileContent]);
+
+  const getFileTree = async () => {
+    const response = await axios.get("http://localhost:9000/files");
+    console.log("first", response.data);
+    setFileTree(response.data);
+  };
 
   // const getFileContents = useCallback(async () => {
   //   if (!selectedFile) return;
@@ -60,25 +64,24 @@ export default function CodegroundPage() {
   // }, [getFileContents, selectedFile]);
 
   useEffect(() => {
-    getFileTree();
     socket.on("file:refresh", getFileTree);
-
     return () => {
       socket.off("file:refresh", getFileTree);
     };
-  }, [getFileTree]);
-
-  useEffect(() => {
-    console.log("Current fileTree state:", fileTree);
-  }, [fileTree]);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col">
       <Navbar />
       <ResizablePanelGroup direction="horizontal" className="flex-1">
+        {/* File Explorer */}
         <ResizablePanel defaultSize={10} minSize={10}>
           <div className="h-full border-r">
-            <FileTree data={fileTree} />
+            <FileTree
+              onSelect={setSelectedFile}
+              selectedFile={selectedFile}
+              data={fileTree}
+            />
           </div>
         </ResizablePanel>
         <ResizableHandle />

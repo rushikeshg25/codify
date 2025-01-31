@@ -38,18 +38,18 @@ export default function DashboardPage() {
   };
   const [codegrounds, setCodegrounds] = useState<codeground[]>([]);
 
-  useEffect(() => {
-    const fetchCodegrounds = async () => {
-      try {
-        const response = await api.get("/codeground");
-        setCodegrounds(response.data);
-      } catch (error) {
-        //@ts-ignore
-        toast.error(error.message as string);
-      }
-    };
-    fetchCodegrounds();
-  }, []);
+  // useEffect(() => {
+  //   const fetchCodegrounds = async () => {
+  //     try {
+  //       const response = await api.get("/codeground");
+  //       setCodegrounds(response.data);
+  //     } catch (error) {
+  //       //@ts-ignore
+  //       toast.error(error.message as string);
+  //     }
+  //   };
+  //   fetchCodegrounds();
+  // }, []);
 
   return (
     <div className="min-h-screen bg-background p-8">
