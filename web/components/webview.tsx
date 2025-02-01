@@ -16,7 +16,7 @@ const Webview = () => {
     if (iframeRef.current) {
       setIsLoading(true);
       setError(null);
-      iframeRef.current.src = `http://localhost:5173`;
+      iframeRef.current.src = `http://localhost:8090`;
     }
   };
 
@@ -26,7 +26,7 @@ const Webview = () => {
 
   const handleIframeError = () => {
     setError(
-      "Failed to load content. Please ensure the development server is running."
+      "Failed to load content. Please ensure the development server is running.",
     );
     setIsLoading(false);
   };
@@ -41,7 +41,7 @@ const Webview = () => {
         />
         <input
           className="border px-1 border-gray-300 dark:border-gray-700 rounded-sm w-full outline-none bg-gray-50 dark:bg-gray-800"
-          value="localhost:5173"
+          value="localhost:8090"
           type="text"
           disabled
         />
@@ -75,7 +75,7 @@ const Webview = () => {
 
         <iframe
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          src="http://localhost:5173"
+          src="http://localhost:8090"
           className="w-full h-full"
           ref={iframeRef}
           onLoad={handleIframeLoad}

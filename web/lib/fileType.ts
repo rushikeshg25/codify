@@ -6,6 +6,12 @@ export const getFileType = ({ selectedFile }: { selectedFile: string }) => {
   switch (extension) {
     case "js":
       return "javascript";
+    case "jsx":
+      return "javascript";
+    case "ts":
+      return "javascript";
+    case "tsx":
+      return "javascript";
     case "py":
       return "python";
     case "java":

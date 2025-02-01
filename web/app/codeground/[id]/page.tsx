@@ -44,10 +44,6 @@ export default function CodegroundPage() {
     }
   }, []);
 
-  // useEffect(() => {
-  //   if (selectedFile) getFileContents();
-  // }, [getFileContents, selectedFile]);
-
   useEffect(() => {
     getFileTree();
     socket.on("file:refresh", getFileTree);
@@ -56,10 +52,6 @@ export default function CodegroundPage() {
       socket.off("file:refresh", getFileTree);
     };
   }, [getFileTree]);
-
-  useEffect(() => {
-    console.log("Current fileTree state:", fileTree);
-  }, [fileTree]);
 
   return (
     <div className="h-screen flex flex-col">

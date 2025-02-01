@@ -37,7 +37,6 @@ const NewCodeground = () => {
       name,
       codeground_type: type,
     });
-    console.log(res);
     toast.success("Codeground created successfully");
   };
   return (
