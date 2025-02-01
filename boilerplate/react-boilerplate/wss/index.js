@@ -15,7 +15,7 @@ const ptyProcess = pty.spawn("bash", [], {
   cwd: DIR,
   env: process.env,
 });
-
+const fileMap = new Map();
 const app = express();
 const server = http.createServer(app);
 const io = new SocketServer({
@@ -36,33 +36,45 @@ ptyProcess.onData((data) => {
 
 io.on("connection", (socket) => {
   console.log(`Socket connected`, socket.id);
-
+  console.log(`Total connected clients: ${io.engine.clientsCount}`);
   socket.emit("file:refresh");
 
-  socket.on("file:change", async ({ path, content }) => {
-    await fs.writeFile(DIR, content);
+  socket.on("file:change", async ({ file, content }) => {
+    await fs.writeFile(fileMap.get(file), content);
   });
 
   socket.on("terminal:write", (data) => {
-    console.log("Term", data);
     ptyProcess.write(data);
+  });
+
+  socket.on("terminal:init", () => {
+    socket.emit("terminal:data", "\r$ ");
   });
 });
 
 app.get("/files", async (req, res) => {
-  const fileTree = await generateFileTree(DIR);
-  return res.json({ tree: fileTree });
+  try {
+    const fileTree = await generateFileTree(DIR, fileMap);
+    return res.json({ tree: fileTree, fileMap: fileMap });
+  } catch (error) {
+    console.error("Error generating file tree:", error);
+    return res.status(500).json({
+      error: "Failed to generate file tree",
+      details: error.message,
+    });
+  }
 });
 
 app.get("/files/content", async (req, res) => {
-  const path = req.query.path;
-  const content = await fs.readFile(`${DIR}/${path}`, "utf-8");
+  const file = req.query.file;
+  console.log(fileMap.get(file));
+  const content = await fs.readFile(fileMap.get(file), "utf-8");
   return res.json({ content });
 });
 
 server.listen(9000, () => console.log(`server running on port 9000`));
 
-async function generateFileTree(directory) {
+async function generateFileTree(directory, fileMap) {
   const tree = {};
 
   async function buildTree(currentDir, currentTree) {
@@ -76,7 +88,12 @@ async function generateFileTree(directory) {
         currentTree[file] = {};
         await buildTree(filePath, currentTree[file]);
       } else {
-        currentTree[file] = null;
+        if (filePath.includes("node_modules")) {
+          continue;
+        } else {
+          currentTree[file] = null;
+        }
+        fileMap.set(file, filePath);
       }
     }
   }

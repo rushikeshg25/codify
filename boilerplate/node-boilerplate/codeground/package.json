@@ -5,11 +5,8 @@
   "scripts": {
     "dev": "node index.js"
   },
-  "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
-  "description": "",
   "dependencies": {
     "express": "^4.21.2"
   }

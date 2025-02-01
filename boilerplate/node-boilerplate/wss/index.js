@@ -88,7 +88,11 @@ async function generateFileTree(directory, fileMap) {
         currentTree[file] = {};
         await buildTree(filePath, currentTree[file]);
       } else {
-        currentTree[file] = null;
+        if (filePath.includes("node_modules")) {
+          continue;
+        } else {
+          currentTree[file] = null;
+        }
         fileMap.set(file, filePath);
       }
     }

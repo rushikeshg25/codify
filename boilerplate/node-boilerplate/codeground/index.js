@@ -1,4 +1,4 @@
-import express from "express";
+const express = require("express");
 
 const app = express();
 
@@ -6,7 +6,10 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-app.listen(8090, () => {
-  console.log("Server is running on port 3090");
+app.get("/hello", (req, res) => {
+  res.send("Hello there");
 });
-there 
+
+app.listen(8090, () => {
+  console.log("Server is running on port 8090");
+});
