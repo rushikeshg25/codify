@@ -1,13 +1,26 @@
-FROM node:20
+FROM node:20 AS base
 
+FROM base AS final
 WORKDIR /app
 
-COPY package*.json ./
-
+WORKDIR /app/codeground
+COPY codeground/package*.json ./
 RUN npm install
+COPY codeground ./
 
-COPY . .
+WORKDIR /app/wss
+COPY wss/package*.json ./
+RUN npm install
+COPY wss ./
 
-EXPOSE 5173          
+EXPOSE 5173 9000
 
-CMD ["npm", "run" , "dev"]
+WORKDIR /app
+RUN echo '#!/bin/sh\n\
+cd /app/wss && node index.js & \n\
+cd /app/codeground && \n\
+# Keep container running\n\
+tail -f /dev/null' > /app/start.sh && \
+    chmod +x /app/start.sh
+
+CMD ["sh", "-c", "/app/start.sh"]

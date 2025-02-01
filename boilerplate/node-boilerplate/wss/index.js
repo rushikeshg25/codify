@@ -55,7 +55,7 @@ io.on("connection", (socket) => {
 app.get("/files", async (req, res) => {
   try {
     const fileTree = await generateFileTree(DIR, fileMap);
-    return res.json({ tree: fileTree, fileMap: fileMap });
+    return res.json({ tree: fileTree });
   } catch (error) {
     console.error("Error generating file tree:", error);
     return res.status(500).json({
