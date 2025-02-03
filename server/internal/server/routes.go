@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"server/internal/controller"
 	"server/internal/middleware"
+	"server/internal/queue"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -21,8 +22,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 	}))
 	db := s.dbInstance.GetDb()
 
+	conn, ch, q := queue.InitQueue("codeground-queue")
+	queueGlobal := queue.Queue{Conn: conn, Ch: ch, Q: q}
+
 	authController := controller.NewAuthController(db)
-	CodegroundController := controller.NewCodegroundController(db)
+	CodegroundController := controller.NewCodegroundController(db, &queueGlobal)
 
 	r.GET("/health", s.healthHandler)
 	api := r.Group("/api")

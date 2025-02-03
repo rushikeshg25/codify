@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"server/internal/queue"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type requestBody struct {
@@ -34,7 +34,7 @@ type QueueMessage struct {
 
 type CodegroundController struct {
 	db *sql.DB       // Database connection
-	ch *amqp.Channel // RabbitMQ channel
+	q  *queue.Queue
 }
 
 const (
@@ -42,20 +42,21 @@ const (
 	NODE  codegroundType = "NODE"
 )
 
-func NewCodegroundController(db *sql.DB) *CodegroundController {
+func NewCodegroundController(db *sql.DB, queue *queue.Queue) *CodegroundController {
 	return &CodegroundController{
 		db: db,
+		q:  queue,
 	}
 }
 
 func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 	var codegrounds []struct {
-		ID              string         `json:"id"`
-		UserID          int           `json:"userId"`
-		Name            string        `json:"name"`
-		CodegroundType  codegroundType `json:"codeground_type"`
-		CreatedAt       string        `json:"createdAt"`
-		UpdatedAt       string        `json:"updatedAt"`
+		ID             string         `json:"id"`
+		UserID         int            `json:"userId"`
+		Name           string         `json:"name"`
+		CodegroundType codegroundType `json:"codeground_type"`
+		CreatedAt      string         `json:"createdAt"`
+		UpdatedAt      string         `json:"updatedAt"`
 	}
 
 	userId, exists := c.Get("userId")
@@ -73,12 +74,12 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 
 	for rows.Next() {
 		var cg struct {
-			ID              string         `json:"id"`
-			UserID          int           `json:"userId"`
-			Name            string        `json:"name"`
-			CodegroundType  codegroundType `json:"codeground_type"`
-			CreatedAt       string        `json:"createdAt"`
-			UpdatedAt       string        `json:"updatedAt"`
+			ID             string         `json:"id"`
+			UserID         int            `json:"userId"`
+			Name           string         `json:"name"`
+			CodegroundType codegroundType `json:"codeground_type"`
+			CreatedAt      string         `json:"createdAt"`
+			UpdatedAt      string         `json:"updatedAt"`
 		}
 		err := rows.Scan(&cg.ID, &cg.UserID, &cg.Name, &cg.CodegroundType, &cg.CreatedAt, &cg.UpdatedAt)
 		if err != nil {
@@ -115,8 +116,15 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-
-	c.JSON(http.StatusCreated, gin.H{"codeground_id": codegroundID})
+	q.q.PublishToQueue(queue.Codeground{
+		ID:             codegroundID,
+		UserID:         userId.(int),
+		Name:           reqbody.Name,
+		CodegroundType: reqbody.Type,
+		CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
+		UpdatedAt:      time.Now().Format("2006-01-02 15:04:05"),
+	}, "create")
+	c.JSON(http.StatusCreated, gin.H{"id": codegroundID, "name": reqbody.Name, "codeground_type": reqbody.Type, "user_id": userId, "created_at": time.Now().Format("2006-01-02 15:04:05"), "updated_at": time.Now().Format("2006-01-02 15:04:05")})
 
 }
 
