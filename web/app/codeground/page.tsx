@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { codeground } from "@/types/codeground";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 const fetchCodegrounds = async () => {
   const response = await api.get("/codeground");
@@ -51,7 +52,6 @@ export default function DashboardPage() {
       }
     );
   };
-  console.log("first", codegrounds);
   const handleNewCodeground = (newCodeground: codeground) => {
     addCodegroundToCache(newCodeground);
   };
@@ -61,9 +61,9 @@ export default function DashboardPage() {
       <div className="mx-auto space-y-8 max-w-7xl">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">My Codegrounds</h1>
-          <div>
+          <div className="flex items-start gap-3">
             <NewCodeground onCodegroundCreated={handleNewCodeground} />
-            {/* <Button onClick={LogoutHandler}></Button> */}
+            <Button onClick={LogoutHandler}>Logout</Button>
           </div>
         </div>
 
@@ -74,29 +74,36 @@ export default function DashboardPage() {
               <LoadingSkeleton />
               <LoadingSkeleton />
             </>
+          ) : codegrounds === null ? (
+            <div className="text-2xl">No Codegrounds Found</div>
           ) : (
             codegrounds.map(
-              (codeground: {
-                id: string;
-                codeground_type: string;
-                name: string;
-                updatedAt: string;
-                createdAt: string;
-                userId: number;
-              }) => (
-                <Link href={`/codeground/${codeground.id}`} key={codeground.id}>
-                  <Card className="p-6 transition-colors cursor-pointer hover:border-primary">
-                    <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <FolderGit2 className="w-8 h-8 mb-2 text-primary" />
-                        <h2 className="font-semibold">{codeground.name}</h2>
+              codegrounds.map(
+                (codeground: {
+                  id: string;
+                  codeground_type: string;
+                  name: string;
+                  updatedAt: string;
+                  createdAt: string;
+                  userId: number;
+                }) => (
+                  <Link
+                    href={`/codeground/${codeground.id}`}
+                    key={codeground.id}
+                  >
+                    <Card className="p-6 transition-colors cursor-pointer hover:border-primary">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <FolderGit2 className="w-8 h-8 mb-2 text-primary" />
+                          <h2 className="font-semibold">{codeground.name}</h2>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {codeground.codeground_type}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        {codeground.codeground_type}
-                      </p>
-                    </div>
-                  </Card>
-                </Link>
+                    </Card>
+                  </Link>
+                )
               )
             )
           )}

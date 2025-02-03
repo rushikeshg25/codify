@@ -48,8 +48,8 @@ const NewCodeground = ({ onCodegroundCreated }: NewCodegroundProps) => {
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
+        <Button className="gap-1">
+          <Plus className="w-3 h-3" />
           New Codeground
         </Button>
       </AlertDialogTrigger>
