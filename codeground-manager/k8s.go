@@ -25,7 +25,6 @@ func NewK8s(clientset *kubernetes.Clientset, namespace string) *K8s {
 	}
 }
 
-
 func (k *K8s) CreateDeployment(codeground Codeground) error {
 	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
 
@@ -38,10 +37,10 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 	}
 	var containerPort int32
 	image := "rushikeshg25/nodejs-codeground:1.1.0"
-	containerPort=8090
+	containerPort = 8090
 	if codeground.CodegroundType == "REACT" {
 		image = "rushikeshg25/reactjs-codeground:1.1.0"
-		containerPort=5173
+		containerPort = 5173
 	}
 
 	deployment := &appsv1.Deployment{
@@ -79,13 +78,12 @@ func (k *K8s) CreateService(codeground Codeground) error {
 	serviceName := fmt.Sprintf("codeground-service-%d-%s", codeground.UserId, codeground.Id)
 
 	serviceClient := k.clientset.CoreV1().Services(k.namespace)
-	var servicePort int32=5173;
-	name:="react"
+	var servicePort int32 = 5173
+	name := "react"
 	if codeground.CodegroundType == "NODE" {
-		name="node"
-		servicePort=8090
+		name = "node"
+		servicePort = 8090
 	}
-
 
 	_, err := serviceClient.Get(context.TODO(), serviceName, metav1.GetOptions{})
 	if err == nil {
@@ -173,7 +171,6 @@ func (k *K8s) CreateIngress(codeground Codeground) error {
 						},
 					},
 				},
-				
 			},
 		},
 	}
