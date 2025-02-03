@@ -49,13 +49,13 @@ export default function DashboardPage() {
       ["codegrounds"],
       (oldData: codeground[] | undefined) => {
         return [...(oldData || []), newCodeground];
-      }
+      },
     );
   };
   const handleNewCodeground = (newCodeground: codeground) => {
     addCodegroundToCache(newCodeground);
   };
-
+  console.log(codegrounds);
   return (
     <div className="min-h-screen p-8 bg-background">
       <div className="mx-auto space-y-8 max-w-7xl">
@@ -78,33 +78,36 @@ export default function DashboardPage() {
             <div className="text-2xl">No Codegrounds Found</div>
           ) : (
             codegrounds.map(
-              codegrounds.map(
-                (codeground: {
-                  id: string;
-                  codeground_type: string;
-                  name: string;
-                  updatedAt: string;
-                  createdAt: string;
-                  userId: number;
-                }) => (
-                  <Link
-                    href={`/codeground/${codeground.id}`}
-                    key={codeground.id}
-                  >
-                    <Card className="p-6 transition-colors cursor-pointer hover:border-primary">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <FolderGit2 className="w-8 h-8 mb-2 text-primary" />
-                          <h2 className="font-semibold">{codeground.name}</h2>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {codeground.codeground_type}
-                        </p>
+              (codeground: {
+                id: string;
+                codeground_type: string;
+                name: string;
+                updatedAt: string;
+                createdAt: string;
+                userId: number;
+              }) => (
+                <Link
+                  href={{
+                    pathname: `/codeground/${codeground.id}`,
+                    query: {
+                      data: JSON.stringify(codeground),
+                    },
+                  }}
+                  key={codeground.id}
+                >
+                  <Card className="p-6 transition-colors cursor-pointer hover:border-primary">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <FolderGit2 className="w-8 h-8 mb-2 text-primary" />
+                        <h2 className="font-semibold">{codeground.name}</h2>
                       </div>
-                    </Card>
-                  </Link>
-                )
-              )
+                      <p className="text-xs text-muted-foreground">
+                        {codeground.codeground_type}
+                      </p>
+                    </div>
+                  </Card>
+                </Link>
+              ),
             )
           )}
         </div>

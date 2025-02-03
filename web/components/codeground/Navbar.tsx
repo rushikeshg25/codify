@@ -5,11 +5,11 @@ import { ModeToggle } from "../ModeToggle";
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 
-const Navbar = () => {
+const Navbar = ({ name }: { name: string }) => {
   return (
     <div className="border-b p-2 px-4 flex justify-between items-center bg-background">
       <div className="flex items-center gap-2">
-        <span className="font-semibold">React Todo App</span>
+        <span className="font-semibold">{name}</span>
       </div>
       <Button size="sm" variant="outline" className="gap-2">
         <Play className="w-4 h-4" />

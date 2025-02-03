@@ -1,7 +1,8 @@
+"use client";
 import { useRef, useState } from "react";
 import { ArrowUpRightFromSquare, RefreshCw } from "lucide-react";
 
-const Webview = () => {
+const Webview = ({ codegroundId }: { codegroundId: string }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +17,7 @@ const Webview = () => {
     if (iframeRef.current) {
       setIsLoading(true);
       setError(null);
-      iframeRef.current.src = `http://localhost:8090`;
+      iframeRef.current.src = `http://app-${codegroundId}.codify.localhost`;
     }
   };
 
@@ -75,7 +76,7 @@ const Webview = () => {
 
         <iframe
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-          src="http://localhost:8090"
+          src={`http://app-${codegroundId}.codify.localhost`}
           className="w-full h-full"
           ref={iframeRef}
           onLoad={handleIframeLoad}

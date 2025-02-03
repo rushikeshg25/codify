@@ -2,14 +2,16 @@
 import { Terminal as XTerminal } from "@xterm/xterm";
 import { Terminal as TerminalIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
-import socket from "@/lib/socket";
+import useSocket from "@/lib/socket";
 import "@xterm/xterm/css/xterm.css";
 
-export function Terminal() {
+export function Terminal({ codegroundId }: { codegroundId: string }) {
   const terminalRef = useRef(null);
   const isRendered = useRef(false);
+  const socket = useSocket(`http://api-${codegroundId}.codify.localhost`);
 
   useEffect(() => {
+    if (!socket) return;
     if (isRendered.current) return;
     isRendered.current = true;
 
