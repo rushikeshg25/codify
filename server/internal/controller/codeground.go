@@ -33,7 +33,7 @@ type QueueMessage struct {
 }
 
 type CodegroundController struct {
-	db *sql.DB       // Database connection
+	db *sql.DB // Database connection
 	q  *queue.Queue
 }
 

@@ -68,10 +68,10 @@ func (q *Queue) PublishToQueue(codeground Codeground, msg string) {
 	failOnError(err, "Failed to serialize message")
 
 	err = q.Ch.PublishWithContext(ctx,
-		"",    // exchange
+		"",       // exchange
 		q.Q.Name, // routing key
-		false, // mandatory
-		false, // immediate
+		false,    // mandatory
+		false,    // immediate
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,
@@ -79,4 +79,3 @@ func (q *Queue) PublishToQueue(codeground Codeground, msg string) {
 	failOnError(err, "Failed to publish a message")
 	log.Printf(" [x] Sent %s\n", string(body))
 }
-
