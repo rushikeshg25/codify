@@ -3,13 +3,17 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"os"
+	"path/filepath"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type QueueMessage struct {
 	Codeground Codeground `json:"codeground"`
-	Msg        string      `json:"msg"` 
+	Msg        string     `json:"msg"`
 }
 
 func failOnError(err error, msg string) {
@@ -19,6 +23,25 @@ func failOnError(err error, msg string) {
 }
 
 func main() {
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("Failed to get home directory: %v", err)
+	}
+	kubeconfig := filepath.Join(home, ".kube", "config")
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		log.Fatalf("Error loading kubeconfig: %v", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Fatalf("Error creating Kubernetes client: %v", err)
+	}
+
+	namespace := "default"
+	k8s := NewK8s(clientset, namespace)
 	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -29,11 +52,11 @@ func main() {
 
 	q, err := ch.QueueDeclare(
 		"codeground-queue", // name
-		false,   // durable
-		false,   // delete when unused
-		false,   // exclusive
-		false,   // no-wait
-		nil,     // arguments
+		false,              // durable
+		false,              // delete when unused
+		false,              // exclusive
+		false,              // no-wait
+		nil,                // arguments
 	)
 	failOnError(err, "Failed to declare a queue")
 
@@ -51,6 +74,7 @@ func main() {
 	var forever chan struct{}
 
 	go func() {
+
 		for d := range msgs {
 			var queueMsg QueueMessage
 			err := json.Unmarshal(d.Body, &queueMsg)
@@ -58,7 +82,9 @@ func main() {
 				log.Printf("Error decoding message: %s", err)
 				continue
 			}
-			codeground:=queueMsg.Codeground
+			codeground := queueMsg.Codeground
+			codeground.K8s = k8s
+
 			switch queueMsg.Msg {
 			case "create":
 				log.Printf("Processing 'create' action for codeground: %+v\n", queueMsg.Codeground)
@@ -66,15 +92,12 @@ func main() {
 			case "delete":
 				log.Printf("Processing 'delete' action for codeground: %+v\n", queueMsg.Codeground)
 				codeground.DeleteCodeground()
-			case "start":
-				log.Printf("Processing 'start' action for codeground: %+v\n", queueMsg.Codeground)
-				codeground.StartCodeground()
 			case "stop":
 				log.Printf("Processing 'stop' action for codeground: %+v\n", queueMsg.Codeground)
 				codeground.StopCodeground()
 			default:
 				log.Printf("Unknown action action: %s\n", queueMsg.Msg)
-			}		
+			}
 		}
 	}()
 
