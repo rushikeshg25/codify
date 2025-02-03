@@ -24,8 +24,13 @@ import {
 import { useState } from "react";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
+import { codeground } from "@/types/codeground";
 
-const NewCodeground = () => {
+interface NewCodegroundProps {
+  onCodegroundCreated: (codeground: codeground) => void;
+}
+
+const NewCodeground = ({ onCodegroundCreated }: NewCodegroundProps) => {
   const [name, setName] = useState("");
   const [type, setType] = useState("");
 
@@ -37,6 +42,7 @@ const NewCodeground = () => {
       name,
       codeground_type: type,
     });
+    onCodegroundCreated(res.data);
     toast.success("Codeground created successfully");
   };
   return (
@@ -52,7 +58,7 @@ const NewCodeground = () => {
           <AlertDialogTitle>New Codeground</AlertDialogTitle>
           <AlertDialogDescription className="flex flex-col gap-5">
             <div>
-              <div className="grid w-full items-center gap-4">
+              <div className="grid items-center w-full gap-4">
                 <div className="flex flex-col space-y-1.5">
                   <Label htmlFor="name">Name</Label>
                   <Input

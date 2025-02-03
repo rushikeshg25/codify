@@ -19,7 +19,6 @@ interface TreeNode {
 
 export default function CodegroundPage() {
   const [fileTree, setFileTree] = useState<TreeNode>({});
-  const [fileMap, setFileMap] = useState<Map<string, string>>(new Map());
   const [selectedFile, setSelectedFile] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,10 +26,9 @@ export default function CodegroundPage() {
   const getFileTree = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await axios.get("http://localhost:9000/files");
+      const response = await axios.get("http://api.rushikesh.localhost/files");
       if (response.data && response.data.tree) {
         setFileTree(response.data.tree);
-        setFileMap(response.data.map);
       } else {
         setError("Invalid data structure received from server");
       }
@@ -66,7 +64,7 @@ export default function CodegroundPage() {
         <ResizablePanel defaultSize={50}>
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel defaultSize={25}>
-              <EditorWindow map={fileMap} file={selectedFile} />
+              <EditorWindow file={selectedFile} />
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={10}>

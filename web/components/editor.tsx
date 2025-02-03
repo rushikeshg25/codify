@@ -12,10 +12,9 @@ import socket from "@/lib/socket";
 
 interface EditorProps {
   file: string;
-  map: Map<string, string>;
 }
 
-export function EditorWindow({ file, map }: EditorProps) {
+export function EditorWindow({ file }: EditorProps) {
   const [code, setCode] = useState("");
   const { theme } = useTheme();
   const [selectedFileContent, setSelectedFileContent] = useState("");
@@ -42,7 +41,7 @@ export function EditorWindow({ file, map }: EditorProps) {
   const getFileContents = useCallback(async () => {
     if (!file) return;
     const response = await fetch(
-      `http://localhost:9000/files/content?file=${file}`,
+      `http://api.rushikesh.localhost/files/content?file=${file}`,
     );
     const result = await response.json();
     setSelectedFileContent(result.content);
