@@ -29,7 +29,7 @@ func (q *AuthController) Login(c *gin.Context) {
 	var id int
 	var password string
 	var createdAt []uint8
-	
+
 	if err := c.BindJSON(&reqBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization failed"})
 		return

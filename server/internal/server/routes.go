@@ -13,11 +13,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"}, 
+		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true, 
+		AllowCredentials: true,
 	}))
 	db := s.dbInstance.GetDb()
 
@@ -50,5 +50,3 @@ func (s *Server) RegisterRoutes() http.Handler {
 func (s *Server) healthHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, s.dbInstance.Health())
 }
-
-

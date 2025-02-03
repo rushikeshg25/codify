@@ -9,15 +9,16 @@ import (
 )
 
 type Claims struct {
-    UserId int    `json:"userId"` 
-    Email  string `json:"email"`
-    jwt.StandardClaims
+	UserId int    `json:"userId"`
+	Email  string `json:"email"`
+	jwt.StandardClaims
 }
 
 type userData struct {
-    Id    int
-    Email string
+	Id    int
+	Email string
 }
+
 var jwtSecret []byte
 
 func init() {

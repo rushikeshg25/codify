@@ -33,7 +33,7 @@ type QueueMessage struct {
 }
 
 type CodegroundController struct {
-	db *sql.DB      // Database connection
+	db *sql.DB       // Database connection
 	ch *amqp.Channel // RabbitMQ channel
 }
 
@@ -42,7 +42,6 @@ const (
 	NODE  codegroundType = "NODE"
 )
 
-
 func NewCodegroundController(db *sql.DB) *CodegroundController {
 	return &CodegroundController{
 		db: db,
@@ -50,41 +49,45 @@ func NewCodegroundController(db *sql.DB) *CodegroundController {
 }
 
 func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
-	var codegrounds []codeground
-	var err error
-	userId, Exists := c.Get("userId")
-	
-	if !Exists {
-		log.Fatalf("Error: %V",err)
+	var codegrounds []struct {
+		ID              string         `json:"id"`
+		UserID          int           `json:"userId"`
+		Name            string        `json:"name"`
+		CodegroundType  codegroundType `json:"codeground_type"`
+		CreatedAt       string        `json:"createdAt"`
+		UpdatedAt       string        `json:"updatedAt"`
+	}
+
+	userId, exists := c.Get("userId")
+	if !exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
 		return
 	}
 
-	rows, err := q.db.Query("SELECT * FROM codegrounds WHERE user_id = ?", userId)
+	rows, err := q.db.Query("SELECT id, user_id, name, codeground_type, created_at, updated_at FROM codegrounds WHERE user_id = ?", userId)
 	if err != nil {
-		log.Fatalf("Error: %V",err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query failed"})
 		return
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var cg codeground
-		if err := rows.Scan(&cg.id, &cg.userId, &cg.name, &cg.codeground_type, &cg.createdAt, &cg.updatedAt); err != nil {
-			log.Fatalf("Error: %V",err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to scan row"})
-			return
+		var cg struct {
+			ID              string         `json:"id"`
+			UserID          int           `json:"userId"`
+			Name            string        `json:"name"`
+			CodegroundType  codegroundType `json:"codeground_type"`
+			CreatedAt       string        `json:"createdAt"`
+			UpdatedAt       string        `json:"updatedAt"`
+		}
+		err := rows.Scan(&cg.ID, &cg.UserID, &cg.Name, &cg.CodegroundType, &cg.CreatedAt, &cg.UpdatedAt)
+		if err != nil {
+			log.Fatal("Row scan error:", err)
 		}
 		codegrounds = append(codegrounds, cg)
 	}
-	if err := rows.Err(); err != nil {
-		log.Fatalf("Error: %V",err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error iterating rows"})
-		return
-	}
 
-	c.JSON(200, gin.H{"data": codegrounds})
-
+	c.JSON(http.StatusOK, gin.H{"data": codegrounds})
 }
 
 func (q *CodegroundController) CreateCodeground(c *gin.Context) {
@@ -102,16 +105,16 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 	}
 	codegroundID := uuid.New().String()
 	_, err = q.db.Exec(
-        "INSERT INTO codegrounds(id, name, codeground_type, user_id) VALUES(?, ?, ?, ?)",
-        codegroundID, 
-        reqbody.Name,
-        reqbody.Type,
-        userId,
-    )
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-        return
-    }
+		"INSERT INTO codegrounds(id, name, codeground_type, user_id) VALUES(?, ?, ?, ?)",
+		codegroundID,
+		reqbody.Name,
+		reqbody.Type,
+		userId,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, gin.H{"codeground_id": codegroundID})
 
@@ -128,13 +131,13 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 
 	row := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
 		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
-		fmt.Println(codeground)
+	fmt.Println(codeground)
 	if row == nil {
-			c.JSON(200, gin.H{"error": "No Codegrounds"})
-			return
+		c.JSON(200, gin.H{"error": "No Codegrounds"})
+		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"name":codeground.name,"id":codeground.id,"codeground_type":codeground.codeground_type})
+	c.JSON(http.StatusOK, gin.H{"name": codeground.name, "id": codeground.id, "codeground_type": codeground.codeground_type})
 }
 
 func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
