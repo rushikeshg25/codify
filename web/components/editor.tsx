@@ -44,7 +44,7 @@ export function EditorWindow({ file, codegroundId }: EditorProps) {
   const getFileContents = useCallback(async () => {
     if (!file) return;
     const response = await fetch(
-      `http://api-${codegroundId}.codify.localhost/files/content?file=${file}`
+      `http://api-${codegroundId}.codify.localhost/files/content?file=${file}`,
     );
     const result = await response.json();
     setSelectedFileContent(result.content);

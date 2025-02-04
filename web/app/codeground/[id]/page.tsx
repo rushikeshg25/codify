@@ -35,7 +35,7 @@ export default function CodegroundPage() {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://api-${codeground.id}.codify.localhost/files`
+        `http://api-${codeground.id}.codify.localhost/files`,
       );
       console.log(response);
       if (response.data && response.data.tree) {
@@ -45,7 +45,7 @@ export default function CodegroundPage() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch file tree"
+        err instanceof Error ? err.message : "Failed to fetch file tree",
       );
       console.error("Error fetching file tree:", err);
     } finally {
