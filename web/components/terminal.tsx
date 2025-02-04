@@ -8,10 +8,14 @@ import "@xterm/xterm/css/xterm.css";
 export function Terminal({ codegroundId }: { codegroundId: string }) {
   const terminalRef = useRef(null);
   const isRendered = useRef(false);
-  const socket = useSocket(`http://api-${codegroundId}.codify.localhost`);
+  const socket = useSocket(`ws://api-${codegroundId}.codify.localhost`);
 
   useEffect(() => {
-    if (!socket) return;
+    console.log("socket", socket);
+    if (!socket) {
+      console.log("no socket");
+      return;
+    }
     if (isRendered.current) return;
     isRendered.current = true;
 

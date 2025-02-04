@@ -21,7 +21,7 @@ export function EditorWindow({ file, codegroundId }: EditorProps) {
   const { theme } = useTheme();
   const [selectedFileContent, setSelectedFileContent] = useState("");
   const isSaved = selectedFileContent === code;
-  const socket = useSocket(`http://api-${codegroundId}.codify.localhost`);
+  const socket = useSocket(`ws://api-${codegroundId}.codify.localhost`);
   useEffect(() => {
     setCode(selectedFileContent);
   }, [selectedFileContent]);
@@ -44,7 +44,7 @@ export function EditorWindow({ file, codegroundId }: EditorProps) {
   const getFileContents = useCallback(async () => {
     if (!file) return;
     const response = await fetch(
-      `http://api-${codegroundId}.codify.localhost/files/content?file=${file}`,
+      `http://api-${codegroundId}.codify.localhost/files/content?file=${file}`
     );
     const result = await response.json();
     setSelectedFileContent(result.content);

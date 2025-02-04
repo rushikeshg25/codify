@@ -25,18 +25,19 @@ export default function CodegroundPage() {
     : null;
 
   if (!codeground) return <div>No Codeground Data Found</div>;
-  const socket = useSocket(`http://api-${codeground.id}.codify.localhost`);
+  const socket = useSocket(`ws://api-${codeground.id}.codify.localhost`);
   const [fileTree, setFileTree] = useState<TreeNode>({});
   const [selectedFile, setSelectedFile] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
+  console.log(`http://api-${codeground.id}.codify.localhost`);
   const getFileTree = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://api-${codeground.id}.codify.localhost/files`,
+        `http://api-${codeground.id}.codify.localhost/files`
       );
+      console.log(response);
       if (response.data && response.data.tree) {
         setFileTree(response.data.tree);
       } else {
@@ -44,7 +45,7 @@ export default function CodegroundPage() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch file tree",
+        err instanceof Error ? err.message : "Failed to fetch file tree"
       );
       console.error("Error fetching file tree:", err);
     } finally {
@@ -53,8 +54,12 @@ export default function CodegroundPage() {
   }, []);
 
   useEffect(() => {
-    if (!socket) return;
     getFileTree();
+  }, []);
+
+  useEffect(() => {
+    getFileTree();
+    if (!socket) return;
     socket.on("file:refresh", getFileTree);
 
     return () => {
@@ -66,7 +71,7 @@ export default function CodegroundPage() {
     <div className="h-screen flex flex-col">
       <Navbar name={codeground.name} />
       <ResizablePanelGroup direction="horizontal" className="flex-1">
-        <ResizablePanel defaultSize={10} minSize={10}>
+        <ResizablePanel defaultSize={14} minSize={10}>
           <div className="h-full border-r">
             <FileTree data={fileTree} selectFile={setSelectedFile} />
           </div>
@@ -75,7 +80,16 @@ export default function CodegroundPage() {
         <ResizablePanel defaultSize={50}>
           <ResizablePanelGroup direction="vertical">
             <ResizablePanel defaultSize={25}>
-              <EditorWindow file={selectedFile} codegroundId={codeground.id} />
+              {selectedFile == "" ? (
+                <div className="w-full h-full flex items-center justify-center text-lg">
+                  Open a file to edit
+                </div>
+              ) : (
+                <EditorWindow
+                  file={selectedFile}
+                  codegroundId={codeground.id}
+                />
+              )}
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={10}>
