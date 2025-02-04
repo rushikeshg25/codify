@@ -12,6 +12,10 @@ import (
 	"github.com/jaevor/go-nanoid"
 )
 
+const(
+	alphabet="abcdefghijklmnopqrstuvwxyz"
+)
+
 type requestBody struct {
 	Name string `json:"name"`
 	Type string `json:"codeground_type"`
@@ -91,10 +95,12 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": codegrounds})
 }
 
+
 func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 	var reqbody requestBody
 	var err error
-	generator,err := nanoid.Standard(8)
+	
+	generator,err := nanoid.CustomUnicode(alphabet,8)
 	if err != nil {
 		log.Fatalf("Error generating ID: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
