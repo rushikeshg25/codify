@@ -27,7 +27,7 @@ const Webview = ({ codegroundId }: { codegroundId: string }) => {
 
   const handleIframeError = () => {
     setError(
-      "Failed to load content. Please ensure the development server is running."
+      "Failed to load content. Please ensure the development server is running.",
     );
     setIsLoading(false);
   };
