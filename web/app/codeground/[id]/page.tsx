@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -14,6 +14,9 @@ import Navbar from "@/components/codeground/Navbar";
 import axios from "axios";
 import { useSearchParams } from "next/navigation";
 import useSocket from "@/lib/socket";
+import { Terminal as XTerminal } from "@xterm/xterm";
+import { Terminal as TerminalIcon } from "lucide-react";
+import "@xterm/xterm/css/xterm.css";
 interface TreeNode {
   [key: string]: TreeNode | null;
 }
@@ -30,14 +33,14 @@ export default function CodegroundPage() {
   const [selectedFile, setSelectedFile] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  console.log(`http://api-${codeground.id}.codify.localhost`);
+  const terminalRef = useRef(null);
+  const isRendered = useRef(false);
   const getFileTree = useCallback(async () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://api-${codeground.id}.codify.localhost/files`,
+        `http://api-${codeground.id}.codify.localhost/files`
       );
-      console.log(response);
       if (response.data && response.data.tree) {
         setFileTree(response.data.tree);
       } else {
@@ -45,7 +48,7 @@ export default function CodegroundPage() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch file tree",
+        err instanceof Error ? err.message : "Failed to fetch file tree"
       );
       console.error("Error fetching file tree:", err);
     } finally {
@@ -61,9 +64,28 @@ export default function CodegroundPage() {
     getFileTree();
     if (!socket) return;
     socket.on("file:refresh", getFileTree);
+    if (isRendered.current) return;
+    isRendered.current = true;
 
+    const term = new XTerminal({
+      cursorBlink: true,
+    });
+    //@ts-ignore
+    term.open(terminalRef.current);
+    socket.emit("terminal:init");
+    term.onData((data) => {
+      socket.emit("terminal:write", data);
+    });
+
+    function onTerminalData(data: string | Uint8Array<ArrayBufferLike>) {
+      term.write(data);
+    }
+    socket.on("terminal:data", onTerminalData);
     return () => {
       socket.off("file:refresh", getFileTree);
+      socket.off("terminal:data", onTerminalData);
+      term.dispose();
+      isRendered.current = false;
     };
   }, [getFileTree]);
 
@@ -93,7 +115,13 @@ export default function CodegroundPage() {
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={10}>
-              <Terminal codegroundId={codeground.id} />
+              <div className="h-full flex flex-col border-t bg-black">
+                <div className="flex items-center gap-2 px-4 py-2 border-b bg-card">
+                  <TerminalIcon className="w-4 h-4" />
+                  <span className="text-sm font-medium">Terminal</span>
+                </div>
+                <div className="pt-3 pl-3 h-full " ref={terminalRef} />
+              </div>
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>

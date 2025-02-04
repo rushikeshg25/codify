@@ -11,14 +11,9 @@ export function Terminal({ codegroundId }: { codegroundId: string }) {
   const socket = useSocket(`ws://api-${codegroundId}.codify.localhost`);
 
   useEffect(() => {
-    console.log("socket", socket);
-    if (!socket) {
-      console.log("no socket");
-      return;
-    }
+    if (!socket) return;
     if (isRendered.current) return;
     isRendered.current = true;
-
     const term = new XTerminal({
       cursorBlink: true,
     });

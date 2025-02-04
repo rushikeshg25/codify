@@ -49,13 +49,12 @@ export default function DashboardPage() {
       ["codegrounds"],
       (oldData: codeground[] | undefined) => {
         return [...(oldData || []), newCodeground];
-      },
+      }
     );
   };
   const handleNewCodeground = (newCodeground: codeground) => {
     addCodegroundToCache(newCodeground);
   };
-  console.log(codegrounds);
   return (
     <div className="min-h-screen p-8 bg-background">
       <div className="mx-auto space-y-8 max-w-7xl">
@@ -107,7 +106,7 @@ export default function DashboardPage() {
                     </div>
                   </Card>
                 </Link>
-              ),
+              )
             )
           )}
         </div>
