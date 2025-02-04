@@ -7,7 +7,6 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import FileTree from "@/components/codeground/Tree";
-import { Terminal } from "@/components/terminal";
 import { EditorWindow } from "@/components/editor";
 import Webview from "@/components/webview";
 import Navbar from "@/components/codeground/Navbar";
@@ -29,7 +28,6 @@ export default function CodegroundPage() {
 
   if (!codeground) return <div>No Codeground Data Found</div>;
   const socket = useSocket(`ws://api-${codeground.id}.codify.localhost`);
-  // const socket = useSocket("http://localhost:9000");
   const [fileTree, setFileTree] = useState<TreeNode>({});
   const [selectedFile, setSelectedFile] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +39,6 @@ export default function CodegroundPage() {
       setLoading(true);
       const response = await axios.get(
         `http://api-${codeground.id}.codify.localhost/files`
-        // "http://localhost:9000/files"
       );
       if (response.data && response.data.tree) {
         setFileTree(response.data.tree);
@@ -61,20 +58,14 @@ export default function CodegroundPage() {
   useEffect(() => {
     getFileTree();
 
-    // Add socket connection status check
-    console.log("Current socket state:", socket?.connected);
-
     if (!socket?.connected) {
-      console.log("Waiting for socket connection...");
       return;
     }
 
     if (isRendered.current) {
-      console.log("Terminal already rendered");
       return;
     }
 
-    console.log("Starting terminal initialization...");
     isRendered.current = true;
 
     const term = new XTerminal({
@@ -86,19 +77,15 @@ export default function CodegroundPage() {
     try {
       //@ts-ignore
       term.open(terminalRef.current);
-      console.log("Terminal opened successfully");
 
-      // Add error handler for socket events
       socket.on("error", (error) => {
         console.error("Socket error:", error);
       });
 
       socket.emit("terminal:init");
-      console.log("Sent terminal:init event");
 
       term.onData((data) => {
         try {
-          console.log("Sending terminal data:", data);
           socket.emit("terminal:write", data);
         } catch (err) {
           console.error("Error sending terminal data:", err);
@@ -107,7 +94,6 @@ export default function CodegroundPage() {
       //@ts-ignore
       function onTerminalData(data: string | Uint8Array<ArrayBufferLike>) {
         try {
-          console.log("Received terminal data:", data);
           term.write(data);
         } catch (err) {
           console.error("Error writing to terminal:", err);
@@ -116,24 +102,20 @@ export default function CodegroundPage() {
 
       socket.on("terminal:data", onTerminalData);
 
-      // Test the connection
       socket.emit("terminal:test", "test");
-      socket.on("terminal:test", (response) => {
-        console.log("Terminal test response:", response);
-      });
+      socket.on("terminal:test", (response) => {});
     } catch (err) {
       console.error("Error initializing terminal:", err);
     }
 
     return () => {
-      console.log("Cleaning up terminal...");
       socket.off("terminal:data");
       socket.off("terminal:test");
       socket.off("error");
       term.dispose();
       isRendered.current = false;
     };
-  }, [socket?.connected]); // Change dependency to socket.connected
+  }, [socket?.connected]);
 
   useEffect(() => {
     getFileTree();
@@ -180,7 +162,6 @@ export default function CodegroundPage() {
                 </div>
                 <div className="pt-3 pl-3 h-full " ref={terminalRef} />
               </div>
-              {/* <Terminal codegroundId={codeground.id} /> */}
             </ResizablePanel>
           </ResizablePanelGroup>
         </ResizablePanel>
