@@ -7,13 +7,30 @@ const useSocket = (url: string) => {
   useEffect(() => {
     if (!url) return;
 
-    const newSocket = io(url);
-    setSocket(newSocket);
+    const newSocket = io(url, {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    newSocket.on("connect", () => {
+      console.log("Socket connected successfully");
+      setSocket(newSocket);
+    });
+
+    newSocket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+    });
 
     return () => {
-      newSocket.disconnect();
+      if (newSocket) {
+        newSocket.disconnect();
+        setSocket(null);
+      }
     };
   }, [url]);
+
   return socket;
 };
 
