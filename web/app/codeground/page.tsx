@@ -49,7 +49,7 @@ export default function DashboardPage() {
       ["codegrounds"],
       (oldData: codeground[] | undefined) => {
         return [...(oldData || []), newCodeground];
-      }
+      },
     );
   };
   const handleNewCodeground = (newCodeground: codeground) => {
@@ -106,7 +106,7 @@ export default function DashboardPage() {
                     </div>
                   </Card>
                 </Link>
-              )
+              ),
             )
           )}
         </div>
