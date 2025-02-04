@@ -27,7 +27,7 @@ const Webview = ({ codegroundId }: { codegroundId: string }) => {
 
   const handleIframeError = () => {
     setError(
-      "Failed to load content. Please ensure the development server is running.",
+      "Failed to load content. Please ensure the development server is running."
     );
     setIsLoading(false);
   };
@@ -42,7 +42,7 @@ const Webview = ({ codegroundId }: { codegroundId: string }) => {
         />
         <input
           className="border px-1 border-gray-300 dark:border-gray-700 rounded-sm w-full outline-none bg-gray-50 dark:bg-gray-800"
-          value="localhost:8090"
+          value={`app-${codegroundId}.codify.localhost`}
           type="text"
           disabled
         />
