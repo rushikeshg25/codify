@@ -9,6 +9,8 @@ require (
 	github.com/joho/godotenv v1.5.1
 )
 
+require github.com/jaevor/go-nanoid v1.4.0 // indirect
+
 require (
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/kr/text v0.2.0 // indirect

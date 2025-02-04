@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+	"github.com/jaevor/go-nanoid"
 )
 
 type requestBody struct {
@@ -94,6 +94,12 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 	var reqbody requestBody
 	var err error
+	generator,err := nanoid.Standard(8)
+	if err != nil {
+		log.Fatalf("Error generating ID: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
 	userId, Exists := c.Get("userId")
 	if !Exists {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -104,7 +110,13 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	codegroundID := uuid.New().String()
+
+	codegroundID:=generator()
+	if err != nil {
+		log.Fatalf("Error generating ID: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
 	_, err = q.db.Exec(
 		"INSERT INTO codegrounds(id, name, codeground_type, user_id) VALUES(?, ?, ?, ?)",
 		codegroundID,

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE IF NOT EXISTS codegrounds (
-    id CHAR(36) NOT NULL PRIMARY KEY DEFAULT (UUID()),
+    id CHAR(36) NOT NULL PRIMARY KEY,
     user_id INT NOT NULL, 
     name VARCHAR(255) NOT NULL,
     codeground_type ENUM('REACT', 'NODE') NOT NULL,
