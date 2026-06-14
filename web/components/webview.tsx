@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { ArrowUpRightFromSquare, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const Webview = ({ codegroundId }: { codegroundId: string }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -41,7 +42,7 @@ const Webview = ({ codegroundId }: { codegroundId: string }) => {
           role="button"
         />
         <input
-          className="border px-1 border-gray-300 dark:border-gray-700 rounded-sm w-full outline-none bg-gray-50 dark:bg-gray-800"
+          className="border px-1 border-input rounded-sm w-full outline-none bg-muted text-muted-foreground"
           value={`app-${codegroundId}.codify.localhost`}
           type="text"
           disabled
@@ -55,22 +56,19 @@ const Webview = ({ codegroundId }: { codegroundId: string }) => {
 
       <div className="flex-1 relative">
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
-            <div className="text-red-500 text-center p-4">
-              <p>{error}</p>
-              <button
-                onClick={handleRefresh}
-                className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
+          <div className="absolute inset-0 flex items-center justify-center bg-muted">
+            <div className="text-center p-4">
+              <p className="text-destructive">{error}</p>
+              <Button onClick={handleRefresh} size="sm" className="mt-2">
                 Retry
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {isLoading && !error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800">
-            <div className="animate-pulse text-gray-500">Loading...</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-muted">
+            <div className="animate-pulse text-muted-foreground">Loading...</div>
           </div>
         )}
 

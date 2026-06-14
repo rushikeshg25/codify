@@ -155,7 +155,7 @@ export default function CodegroundPage() {
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel defaultSize={10}>
-              <div className="h-full flex flex-col border-t bg-black">
+              <div className="h-full flex flex-col border-t bg-zinc-950">
                 <div className="flex items-center gap-2 px-4 py-2 border-b bg-card">
                   <TerminalIcon className="w-4 h-4" />
                   <span className="text-sm font-medium">Terminal</span>
