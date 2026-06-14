@@ -14,7 +14,7 @@ import axios from "axios";
 import { useSearchParams } from "next/navigation";
 import useSocket from "@/lib/socket";
 import { Terminal as XTerminal } from "@xterm/xterm";
-import { Terminal as TerminalIcon } from "lucide-react";
+import { Terminal as TerminalIcon, Loader2 } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 interface TreeNode {
   [key: string]: TreeNode | null;
@@ -134,8 +134,29 @@ export default function CodegroundPage() {
       <Navbar name={codeground.name} />
       <ResizablePanelGroup direction="horizontal" className="flex-1">
         <ResizablePanel defaultSize={14} minSize={10}>
-          <div className="h-full border-r">
-            <FileTree data={fileTree} selectFile={setSelectedFile} />
+          <div className="h-full border-r overflow-auto">
+            {loading ? (
+              <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading files…
+              </div>
+            ) : error ? (
+              <div className="p-4 space-y-2 text-sm">
+                <p className="text-destructive">{error}</p>
+                <button
+                  onClick={() => getFileTree()}
+                  className="text-primary hover:underline"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <FileTree
+                data={fileTree}
+                selectFile={setSelectedFile}
+                selectedFile={selectedFile}
+              />
+            )}
           </div>
         </ResizablePanel>
         <ResizableHandle />
