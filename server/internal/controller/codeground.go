@@ -147,8 +147,13 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
 		return
 	}
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
 
-	err := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
+	err := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).
 		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -172,7 +177,12 @@ func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
 		return
 	}
-	err = q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
+	err = q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).
 		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
 
 	if err != nil {
@@ -188,7 +198,7 @@ func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	_, err = q.db.Exec("UPDATE codegrounds SET name = ?, codeground_type = ? WHERE id = ?", reqbody.Name, reqbody.Type, codegroundId)
+	_, err = q.db.Exec("UPDATE codegrounds SET name = ?, codeground_type = ? WHERE id = ? AND user_id = ?", reqbody.Name, reqbody.Type, codegroundId, userId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -205,11 +215,19 @@ func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
 		return
 	}
-	_, err = q.db.Exec("DELETE FROM codegrounds WHERE id = ?", codegroundId)
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
+	res, err := q.db.Exec("DELETE FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
-
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": nil})
 }
