@@ -4,10 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"os"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+func rabbitMQURL() string {
+	if url := os.Getenv("RABBITMQ_URL"); url != "" {
+		return url
+	}
+	return "amqp://guest:guest@localhost:5672/"
+}
 
 type Codeground struct {
 	ID             string `json:"id"`
@@ -36,7 +44,7 @@ type Queue struct {
 }
 
 func InitQueue(queueName string) (*amqp.Connection, *amqp.Channel, amqp.Queue) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial(rabbitMQURL())
 	failOnError(err, "Failed to connect to RabbitMQ")
 
 	ch, err := conn.Channel()

@@ -73,7 +73,11 @@ export default function DashboardPage() {
               <LoadingSkeleton />
               <LoadingSkeleton />
             </>
-          ) : codegrounds === null ? (
+          ) : error ? (
+            <div className="text-2xl text-destructive">
+              Failed to load codegrounds. Please try again.
+            </div>
+          ) : !codegrounds || codegrounds.length === 0 ? (
             <div className="text-2xl">No Codegrounds Found</div>
           ) : (
             codegrounds.map(

@@ -8,7 +8,6 @@ import "ace-builds/src-noconflict/theme-solarized_dark";
 import "ace-builds/src-noconflict/theme-solarized_light";
 import "ace-builds/src-noconflict/ext-language_tools";
 import { useTheme } from "next-themes";
-import socket from "@/lib/socket";
 import useSocket from "@/lib/socket";
 
 interface EditorProps {
@@ -39,16 +38,23 @@ export function EditorWindow({ file, codegroundId }: EditorProps) {
         clearTimeout(timer);
       };
     }
-  }, [code, file, isSaved]);
+  }, [code, file, isSaved, socket]);
 
   const getFileContents = useCallback(async () => {
     if (!file) return;
-    const response = await fetch(
-      `http://api-${codegroundId}.codify.localhost/files/content?file=${file}`,
-    );
-    const result = await response.json();
-    setSelectedFileContent(result.content);
-  }, [file]);
+    try {
+      const response = await fetch(
+        `http://api-${codegroundId}.codify.localhost/files/content?file=${file}`,
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to load file (${response.status})`);
+      }
+      const result = await response.json();
+      setSelectedFileContent(result.content);
+    } catch (err) {
+      console.error("Failed to load file contents:", err);
+    }
+  }, [file, codegroundId]);
 
   useEffect(() => {
     if (file) getFileContents();

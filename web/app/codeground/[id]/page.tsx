@@ -127,7 +127,7 @@ export default function CodegroundPage() {
 
       isRendered.current = false;
     };
-  }, [getFileTree]);
+  }, [getFileTree, socket]);
 
   return (
     <div className="h-screen flex flex-col">

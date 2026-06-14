@@ -61,7 +61,10 @@ func (q *AuthController) Signup(c *gin.Context) {
 		return
 	}
 	err = q.db.QueryRow("SELECT id FROM users WHERE email = ?", reqBody.Email).Scan(&email)
-	if err != sql.ErrNoRows {
+	if err == nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Email already registered"})
+		return
+	} else if err != sql.ErrNoRows {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
@@ -80,7 +83,7 @@ func (q *AuthController) Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	token, err := GenerateToken(email, int(userID))
+	token, err := GenerateToken(reqBody.Email, int(userID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return

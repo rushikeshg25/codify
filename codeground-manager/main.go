@@ -22,13 +22,23 @@ func failOnError(err error, msg string) {
 	}
 }
 
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 func main() {
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		log.Fatalf("Failed to get home directory: %v", err)
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("Failed to get home directory: %v", err)
+		}
+		kubeconfig = filepath.Join(home, ".kube", "config")
 	}
-	kubeconfig := filepath.Join(home, ".kube", "config")
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
@@ -40,9 +50,9 @@ func main() {
 		log.Fatalf("Error creating Kubernetes client: %v", err)
 	}
 
-	namespace := "default"
+	namespace := envOr("K8S_NAMESPACE", "default")
 	k8s := NewK8s(clientset, namespace)
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	conn, err := amqp.Dial(envOr("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"))
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
