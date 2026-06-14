@@ -2,8 +2,6 @@ package controller
 
 import (
 	"database/sql"
-	"fmt"
-	"log"
 	"net/http"
 	"server/internal/queue"
 	"time"
@@ -87,7 +85,8 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 		}
 		err := rows.Scan(&cg.ID, &cg.UserID, &cg.Name, &cg.CodegroundType, &cg.CreatedAt, &cg.UpdatedAt)
 		if err != nil {
-			log.Fatal("Row scan error:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read codegrounds"})
+			return
 		}
 		codegrounds = append(codegrounds, cg)
 	}
@@ -102,7 +101,6 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 	
 	generator,err := nanoid.CustomUnicode(alphabet,8)
 	if err != nil {
-		log.Fatalf("Error generating ID: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
@@ -117,12 +115,7 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		return
 	}
 
-	codegroundID:=generator()
-	if err != nil {
-		log.Fatalf("Error generating ID: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
-	}
+	codegroundID := generator()
 	_, err = q.db.Exec(
 		"INSERT INTO codegrounds(id, name, codeground_type, user_id) VALUES(?, ?, ?, ?)",
 		codegroundID,
@@ -155,11 +148,14 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 		return
 	}
 
-	row := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
+	err := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ?", codegroundId).
 		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
-	fmt.Println(codeground)
-	if row == nil {
-		c.JSON(200, gin.H{"error": "No Codegrounds"})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
 		return
 	}
 
@@ -192,7 +188,7 @@ func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	_, err = q.db.Exec("UPDATE codegrounds SET name = ?, type = ? WHERE id = ?", reqbody.Name, reqbody.Type, codegroundId)
+	_, err = q.db.Exec("UPDATE codegrounds SET name = ?, codeground_type = ? WHERE id = ?", reqbody.Name, reqbody.Type, codegroundId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
