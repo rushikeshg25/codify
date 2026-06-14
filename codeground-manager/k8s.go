@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -30,7 +32,10 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 
 	deploymentClient := k.clientset.AppsV1().Deployments(k.namespace)
 
-	_, err := deploymentClient.Get(context.TODO(), deploymentName, metav1.GetOptions{})
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+
+	_, err := deploymentClient.Get(ctx, deploymentName, metav1.GetOptions{})
 	if err == nil {
 		log.Println("Deployment already exists:", deploymentName)
 		return nil
@@ -63,6 +68,16 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 								{ContainerPort: containerPort},
 								{ContainerPort: 9000},
 							},
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("128Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("500m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
+								},
+							},
 						},
 					},
 				},
@@ -70,7 +85,7 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 		},
 	}
 
-	_, err = deploymentClient.Create(context.TODO(), deployment, metav1.CreateOptions{})
+	_, err = deploymentClient.Create(ctx, deployment, metav1.CreateOptions{})
 	return err
 }
 
@@ -85,7 +100,10 @@ func (k *K8s) CreateService(codeground Codeground) error {
 		servicePort = 8090
 	}
 
-	_, err := serviceClient.Get(context.TODO(), serviceName, metav1.GetOptions{})
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+
+	_, err := serviceClient.Get(ctx, serviceName, metav1.GetOptions{})
 	if err == nil {
 		log.Println("Service already exists:", serviceName)
 		return nil
@@ -103,7 +121,7 @@ func (k *K8s) CreateService(codeground Codeground) error {
 		},
 	}
 
-	_, err = serviceClient.Create(context.TODO(), service, metav1.CreateOptions{})
+	_, err = serviceClient.Create(ctx, service, metav1.CreateOptions{})
 	return err
 }
 
@@ -113,7 +131,10 @@ func (k *K8s) CreateIngress(codeground Codeground) error {
 
 	ingressClient := k.clientset.NetworkingV1().Ingresses(k.namespace)
 
-	_, err := ingressClient.Get(context.TODO(), ingressName, metav1.GetOptions{})
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+
+	_, err := ingressClient.Get(ctx, ingressName, metav1.GetOptions{})
 	if err == nil {
 		log.Println("Ingress already exists:", ingressName)
 		return nil
@@ -174,25 +195,33 @@ func (k *K8s) CreateIngress(codeground Codeground) error {
 			},
 		},
 	}
-	fmt.Printf("%+v\n", ingress)
-
-	_, err = ingressClient.Create(context.TODO(), ingress, metav1.CreateOptions{})
+	_, err = ingressClient.Create(ctx, ingress, metav1.CreateOptions{})
 	return err
 }
 
 func (k *K8s) DeleteDeployment(codeground Codeground) error {
 	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
-	return k.clientset.AppsV1().Deployments(k.namespace).Delete(context.TODO(), deploymentName, metav1.DeleteOptions{})
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+	return k.clientset.AppsV1().Deployments(k.namespace).Delete(ctx, deploymentName, metav1.DeleteOptions{})
 }
 
 func (k *K8s) DeleteService(codeground Codeground) error {
 	serviceName := fmt.Sprintf("codeground-service-%d-%s", codeground.UserId, codeground.Id)
-	return k.clientset.CoreV1().Services(k.namespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+	return k.clientset.CoreV1().Services(k.namespace).Delete(ctx, serviceName, metav1.DeleteOptions{})
 }
 
 func (k *K8s) DeleteIngress(codeground Codeground) error {
 	ingressName := fmt.Sprintf("codeground-ingress-%d-%s", codeground.UserId, codeground.Id)
-	return k.clientset.NetworkingV1().Ingresses(k.namespace).Delete(context.TODO(), ingressName, metav1.DeleteOptions{})
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+	return k.clientset.NetworkingV1().Ingresses(k.namespace).Delete(ctx, ingressName, metav1.DeleteOptions{})
+}
+
+func ctxWithTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 30*time.Second)
 }
 
 var pathTypePrefix = networkingv1.PathTypePrefix
