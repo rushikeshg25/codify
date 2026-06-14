@@ -9,12 +9,14 @@ interface FileTreeProps {
   data: TreeNode;
   defaultExpanded?: boolean;
   selectFile: (file: string) => void;
+  selectedFile?: string;
 }
 
 const FileTree = ({
   data,
   defaultExpanded = false,
   selectFile,
+  selectedFile,
 }: FileTreeProps) => {
   if (!data) {
     return null;
@@ -30,6 +32,7 @@ const FileTree = ({
           level={0}
           defaultExpanded={defaultExpanded}
           selectFile={selectFile}
+          selectedFile={selectedFile}
         />
       ))}
     </div>
@@ -42,6 +45,7 @@ interface TreeNodeProps {
   level: number;
   defaultExpanded: boolean;
   selectFile: (file: string) => void;
+  selectedFile?: string;
 }
 
 const TreeNode = ({
@@ -50,6 +54,7 @@ const TreeNode = ({
   level,
   defaultExpanded,
   selectFile,
+  selectedFile,
 }: TreeNodeProps) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -57,6 +62,7 @@ const TreeNode = ({
 
   const isDirectory = node !== null && typeof node === "object";
   const entries = isDirectory && node ? Object.entries(node) : [];
+  const isSelected = !isDirectory && name === selectedFile;
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -70,8 +76,9 @@ const TreeNode = ({
   return (
     <div>
       <div
-        className="flex items-center dark:hover:bg-gray-100 hover:bg-neutral-800 hover:text-gray-300 cursor-pointer py-1 px-2 rounded
-          dark:text-gray-200 dark:hover:text-gray-800"
+        className={`flex items-center cursor-pointer py-1 px-2 rounded hover:bg-accent hover:text-accent-foreground ${
+          isSelected ? "bg-accent text-accent-foreground font-medium" : ""
+        }`}
         style={{ paddingLeft: `${level * 16}px` }}
         onClick={handleClick}
       >
@@ -108,6 +115,7 @@ const TreeNode = ({
               level={level + 1}
               defaultExpanded={defaultExpanded}
               selectFile={selectFile}
+              selectedFile={selectedFile}
             />
           ))}
         </div>
