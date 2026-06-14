@@ -28,8 +28,16 @@ func (c *Codeground) CreateCodeground() {
 	logError(err)
 }
 
-func (c *Codeground) DeleteCodeground() {}
+func (c *Codeground) DeleteCodeground() {
+	logError(c.K8s.DeleteIngress(*c))
+	logError(c.K8s.DeleteService(*c))
+	logError(c.K8s.DeleteDeployment(*c))
+}
 
 func (c *Codeground) StartCodeground() {}
 
-func (c *Codeground) StopCodeground() {}
+// StopCodeground tears down the running k8s resources for a codeground.
+// Currently equivalent to a delete; persistent state is not retained.
+func (c *Codeground) StopCodeground() {
+	c.DeleteCodeground()
+}

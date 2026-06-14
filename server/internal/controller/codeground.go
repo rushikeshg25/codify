@@ -229,5 +229,9 @@ func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
 		return
 	}
+	q.q.PublishToQueue(queue.Codeground{
+		ID:     codegroundId,
+		UserID: userId.(int),
+	}, "delete")
 	c.JSON(http.StatusOK, gin.H{"data": nil})
 }
