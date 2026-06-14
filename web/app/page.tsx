@@ -3,10 +3,32 @@
 import { Button } from "@/components/ui/button";
 import { Terminal, Code2, Github } from "lucide-react";
 import Link from "next/link";
+import { ModeToggle } from "@/components/ModeToggle";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b">
+        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-bold text-lg">
+            <Code2 className="w-5 h-5 text-primary" />
+            Codify
+          </Link>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <Link href="/login">
+              <Button variant="ghost" size="sm">
+                Login
+              </Button>
+            </Link>
+            <Link href="/signup">
+              <Button size="sm">Sign up</Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
       <div className="container mx-auto px-4 pt-20 pb-16">
         <div className="text-center space-y-6">
