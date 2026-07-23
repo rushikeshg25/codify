@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { ArrowUpRightFromSquare, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { codegroundAppUrl, codegroundAppHost } from "@/lib/config";
 
 const Webview = ({ codegroundId }: { codegroundId: string }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -18,7 +19,7 @@ const Webview = ({ codegroundId }: { codegroundId: string }) => {
     if (iframeRef.current) {
       setIsLoading(true);
       setError(null);
-      iframeRef.current.src = `http://app-${codegroundId}.codify.localhost`;
+      iframeRef.current.src = codegroundAppUrl(codegroundId);
     }
   };
 
@@ -43,7 +44,7 @@ const Webview = ({ codegroundId }: { codegroundId: string }) => {
         />
         <input
           className="border px-1 border-input rounded-sm w-full outline-none bg-muted text-muted-foreground"
-          value={`app-${codegroundId}.codify.localhost`}
+          value={codegroundAppHost(codegroundId)}
           type="text"
           disabled
         />
