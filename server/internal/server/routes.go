@@ -52,5 +52,10 @@ func (s *Server) RegisterRoutes() http.Handler {
 }
 
 func (s *Server) healthHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, s.dbInstance.Health())
+	health := s.dbInstance.Health()
+	if health["status"] == "down" {
+		c.JSON(http.StatusServiceUnavailable, health)
+		return
+	}
+	c.JSON(http.StatusOK, health)
 }
