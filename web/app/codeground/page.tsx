@@ -140,13 +140,7 @@ const CodegroundCard = ({
   onDelete: (id: string) => void;
 }) => (
   <Card className="relative p-6 transition-colors hover:border-primary">
-    <Link
-      href={{
-        pathname: `/codeground/${codeground.id}`,
-        query: { data: JSON.stringify(codeground) },
-      }}
-      className="block"
-    >
+    <Link href={`/codeground/${codeground.id}`} className="block">
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <FolderGit2 className="w-8 h-8 mb-2 text-primary" />
