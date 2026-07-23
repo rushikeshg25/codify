@@ -1,9 +1,8 @@
 "use client";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -31,22 +30,36 @@ interface NewCodegroundProps {
 }
 
 const NewCodeground = ({ onCodegroundCreated }: NewCodegroundProps) => {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const submitHandler = async () => {
     if (!name || !type) {
-      return toast.error("Please fill all the fields");
+      toast.error("Please fill all the fields");
+      return;
     }
-    const res = await api.post("/codeground", {
-      name,
-      codeground_type: type,
-    });
-    onCodegroundCreated(res.data);
-    toast.success("Codeground created successfully");
+    setSubmitting(true);
+    try {
+      const res = await api.post("/codeground", {
+        name,
+        codeground_type: type,
+      });
+      onCodegroundCreated(res.data);
+      toast.success("Codeground created successfully");
+      setName("");
+      setType("");
+      setOpen(false);
+    } catch {
+      toast.error("Failed to create codeground");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
         <Button className="gap-1">
           <Plus className="w-3 h-3" />
@@ -56,38 +69,39 @@ const NewCodeground = ({ onCodegroundCreated }: NewCodegroundProps) => {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>New Codeground</AlertDialogTitle>
-          <AlertDialogDescription className="flex flex-col gap-5">
-            <div>
-              <div className="grid items-center w-full gap-4">
-                <div className="flex flex-col space-y-1.5">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Name your Codeground"
-                  />
-                </div>
-                <div className="flex flex-col space-y-1.5">
-                  <Label htmlFor="type">Type</Label>
-                  <Select
-                    onValueChange={(value) => setType(value)}
-                    value={type}
-                  >
-                    <SelectTrigger id="type">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent position="popper">
-                      <SelectItem value="NODE">Node</SelectItem>
-                      <SelectItem value="REACT">React</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
+          <AlertDialogDescription>
+            Name your codeground and pick a template to get started.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        <div className="grid items-center w-full gap-4">
+          <div className="flex flex-col space-y-1.5">
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Name your Codeground"
+            />
+          </div>
+          <div className="flex flex-col space-y-1.5">
+            <Label htmlFor="type">Type</Label>
+            <Select onValueChange={(value) => setType(value)} value={type}>
+              <SelectTrigger id="type">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem value="NODE">Node</SelectItem>
+                <SelectItem value="REACT">React</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={submitHandler}>Create</AlertDialogAction>
+          <AlertDialogCancel disabled={submitting}>Cancel</AlertDialogCancel>
+          <Button onClick={submitHandler} disabled={submitting} className="gap-1">
+            {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            Create
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
