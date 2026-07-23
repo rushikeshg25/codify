@@ -34,8 +34,14 @@ func (q *AuthController) Login(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization failed"})
 		return
 	}
-	err := q.db.QueryRow("SELECT * FROM users WHERE email = ?", reqBody.Email).Scan(&id, &email, &password, &createdAt)
+	err := q.db.QueryRow("SELECT id, email, password, created_at FROM users WHERE email = ?", reqBody.Email).Scan(&id, &email, &password, &createdAt)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// Return the same response as a wrong password so we don't leak
+			// which emails are registered (user enumeration).
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
