@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"os"
 	"server/internal/controller"
 	"server/internal/middleware"
 	"server/internal/queue"
@@ -10,11 +11,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// corsOrigin returns the allowed frontend origin, configurable via
+// CORS_ALLOW_ORIGIN and defaulting to the local dev frontend.
+func corsOrigin() string {
+	if origin := os.Getenv("CORS_ALLOW_ORIGIN"); origin != "" {
+		return origin
+	}
+	return "http://localhost:3000"
+}
+
 func (s *Server) RegisterRoutes() http.Handler {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins:     []string{corsOrigin()},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
 		AllowHeaders:     []string{"Accept", "Authorization", "Content-Type"},
 		ExposeHeaders:    []string{"Content-Length"},
