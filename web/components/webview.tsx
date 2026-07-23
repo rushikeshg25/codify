@@ -37,22 +37,30 @@ const Webview = ({ codegroundId }: { codegroundId: string }) => {
   return (
     <div className="flex flex-col h-screen">
       <div className="flex items-center justify-between p-2 space-x-2 border-b">
-        <RefreshCw
-          className={`cursor-pointer h-5 w-5 ${isLoading ? "animate-spin" : ""}`}
+        <button
+          type="button"
           onClick={handleRefresh}
-          role="button"
-        />
+          aria-label="Refresh preview"
+          className="rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <RefreshCw
+            className={`cursor-pointer h-5 w-5 ${isLoading ? "animate-spin" : ""}`}
+          />
+        </button>
         <input
           className="border px-1 border-input rounded-sm w-full outline-none bg-muted text-muted-foreground"
           value={codegroundAppHost(codegroundId)}
           type="text"
           disabled
         />
-        <ArrowUpRightFromSquare
-          className="cursor-pointer h-4 w-4"
+        <button
+          type="button"
           onClick={handleOpenTab}
-          role="button"
-        />
+          aria-label="Open preview in new tab"
+          className="rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <ArrowUpRightFromSquare className="cursor-pointer h-4 w-4" />
+        </button>
       </div>
 
       <div className="flex-1 relative">

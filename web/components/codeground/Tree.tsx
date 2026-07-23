@@ -64,8 +64,7 @@ const TreeNode = ({
   const entries = isDirectory && node ? Object.entries(node) : [];
   const isSelected = !isDirectory && name === selectedFile;
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const activate = () => {
     if (isDirectory) {
       setIsExpanded(!isExpanded);
     } else {
@@ -73,14 +72,32 @@ const TreeNode = ({
     }
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    activate();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      activate();
+    }
+  };
+
   return (
     <div>
       <div
-        className={`flex items-center cursor-pointer py-1 px-2 rounded hover:bg-accent hover:text-accent-foreground ${
+        role="treeitem"
+        tabIndex={0}
+        aria-expanded={isDirectory ? isExpanded : undefined}
+        aria-selected={isSelected}
+        className={`flex items-center cursor-pointer py-1 px-2 rounded hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
           isSelected ? "bg-accent text-accent-foreground font-medium" : ""
         }`}
         style={{ paddingLeft: `${level * 16}px` }}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
       >
         {isDirectory ? (
           <>
