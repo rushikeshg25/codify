@@ -3,10 +3,24 @@ package controller
 import (
 	"database/sql"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// cookieSecure reports whether the auth cookie should carry the Secure flag.
+// It is off by default for local HTTP dev and enabled via COOKIE_SECURE=true
+// in any environment served over HTTPS.
+func cookieSecure() bool {
+	return os.Getenv("COOKIE_SECURE") == "true"
+}
+
+// setAuthCookie writes the JWT as an HttpOnly, SameSite=Lax cookie.
+func setAuthCookie(c *gin.Context, token string, maxAge int) {
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("token", token, maxAge, "/", "", cookieSecure(), true)
+}
 
 type AuthController struct {
 	db *sql.DB
@@ -54,7 +68,7 @@ func (q *AuthController) Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	c.SetCookie("token", token, 3600*24*7, "/", "", false, true)
+	setAuthCookie(c, token, 3600*24*7)
 	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
 }
 
@@ -94,13 +108,13 @@ func (q *AuthController) Signup(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	c.SetCookie("token", token, 3600*24*7, "/", "", false, true)
+	setAuthCookie(c, token, 3600*24*7)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Signup successful", "Email": reqBody.Email})
 }
 
 func (q *AuthController) Logout(c *gin.Context) {
-	c.SetCookie("token", "", -1, "/", "", false, true)
+	setAuthCookie(c, "", -1)
 	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 
