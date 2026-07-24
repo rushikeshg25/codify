@@ -11,34 +11,60 @@ import { EditorWindow } from "@/components/editor";
 import Webview from "@/components/webview";
 import Navbar from "@/components/codeground/Navbar";
 import axios from "axios";
-import { useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import api from "@/lib/api";
+import { codegroundApiUrl, codegroundWsUrl } from "@/lib/config";
 import useSocket from "@/lib/socket";
 import { Terminal as XTerminal } from "@xterm/xterm";
 import { Terminal as TerminalIcon, Loader2 } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
+
 interface TreeNode {
   [key: string]: TreeNode | null;
 }
 
-export default function CodegroundPage() {
-  const searchParams = useSearchParams();
-  const codeground = searchParams.get("data")
-    ? JSON.parse(searchParams.get("data") as string)
-    : null;
+interface Codeground {
+  id: string;
+  name: string;
+  codeground_type: string;
+}
 
-  if (!codeground) return <div>No Codeground Data Found</div>;
-  const socket = useSocket(`ws://api-${codeground.id}.codify.localhost`);
+export default function CodegroundPage() {
+  const params = useParams();
+  const id = typeof params.id === "string" ? params.id : "";
+
+  const {
+    data: codeground,
+    isLoading: isCodegroundLoading,
+    isError: isCodegroundError,
+  } = useQuery({
+    queryKey: ["codeground", id],
+    queryFn: async () => {
+      const res = await api.get(`/codeground/${id}`);
+      return res.data as Codeground;
+    },
+    enabled: !!id,
+    retry: false,
+  });
+
+  // useSocket ignores an empty url, so it's safe to call before the codeground
+  // has loaded — this keeps all hooks unconditional (Rules of Hooks).
+  const socket = useSocket(codeground ? codegroundWsUrl(codeground.id) : "");
   const [fileTree, setFileTree] = useState<TreeNode>({});
   const [selectedFile, setSelectedFile] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const terminalRef = useRef(null);
   const isRendered = useRef(false);
+
   const getFileTree = useCallback(async () => {
+    if (!codeground) return;
     try {
       setLoading(true);
+      setError(null);
       const response = await axios.get(
-        `http://api-${codeground.id}.codify.localhost/files`
+        `${codegroundApiUrl(codeground.id)}/files`,
       );
       if (response.data && response.data.tree) {
         setFileTree(response.data.tree);
@@ -47,87 +73,66 @@ export default function CodegroundPage() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to fetch file tree"
+        err instanceof Error ? err.message : "Failed to fetch file tree",
       );
-      console.error("Error fetching file tree:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [codeground]);
 
+  // Terminal wiring — set up once per live socket connection.
   useEffect(() => {
-    getFileTree();
-
-    if (!socket?.connected) {
-      return;
-    }
-
-    if (isRendered.current) {
-      return;
-    }
+    if (!socket?.connected || isRendered.current) return;
 
     isRendered.current = true;
-
-    const term = new XTerminal({
-      cursorBlink: true,
-      rows: 24,
-      cols: 80,
-    });
+    const term = new XTerminal({ cursorBlink: true, rows: 24, cols: 80 });
 
     try {
-      //@ts-ignore
+      // @ts-ignore terminalRef is attached before this runs
       term.open(terminalRef.current);
-
-      socket.on("error", (error) => {
-        console.error("Socket error:", error);
-      });
-
       socket.emit("terminal:init");
 
-      term.onData((data) => {
-        try {
-          socket.emit("terminal:write", data);
-        } catch (err) {
-          console.error("Error sending terminal data:", err);
-        }
-      });
-      //@ts-ignore
-      function onTerminalData(data: string | Uint8Array<ArrayBufferLike>) {
-        try {
-          term.write(data);
-        } catch (err) {
-          console.error("Error writing to terminal:", err);
-        }
-      }
+      term.onData((data) => socket.emit("terminal:write", data));
 
+      const onTerminalData = (data: string | Uint8Array) => term.write(data);
       socket.on("terminal:data", onTerminalData);
-
-      socket.emit("terminal:test", "test");
-      socket.on("terminal:test", (response) => {});
-    } catch (err) {
-      console.error("Error initializing terminal:", err);
+    } catch {
+      // terminal DOM node not ready yet; the effect re-runs on reconnect
     }
 
     return () => {
       socket.off("terminal:data");
-      socket.off("terminal:test");
-      socket.off("error");
       term.dispose();
       isRendered.current = false;
     };
   }, [socket?.connected]);
 
+  // File tree — initial load plus refresh on sandbox file changes.
   useEffect(() => {
     getFileTree();
     if (!socket) return;
     socket.on("file:refresh", getFileTree);
-
     return () => {
       socket.off("file:refresh", getFileTree);
-
-      isRendered.current = false;
     };
   }, [getFileTree, socket]);
+
+  if (isCodegroundLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center gap-2 text-muted-foreground">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        Loading codeground…
+      </div>
+    );
+  }
+
+  if (isCodegroundError || !codeground) {
+    return (
+      <div className="h-screen flex items-center justify-center text-lg">
+        Codeground not found
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col">
@@ -168,10 +173,7 @@ export default function CodegroundPage() {
                   Open a file to edit
                 </div>
               ) : (
-                <EditorWindow
-                  file={selectedFile}
-                  codegroundId={codeground.id}
-                />
+                <EditorWindow file={selectedFile} codegroundId={codeground.id} />
               )}
             </ResizablePanel>
             <ResizableHandle />
