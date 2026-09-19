@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -22,7 +23,21 @@ type userData struct {
 var jwtSecret []byte
 
 func init() {
-	jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("JWT_SECRET must be set: refusing to sign tokens with an empty key")
+	}
+	jwtSecret = []byte(secret)
+}
+
+// keyFunc returns the HMAC secret only when the token was signed with an HMAC
+// algorithm. This pins the expected signing method and guards against
+// algorithm-confusion attacks (e.g. a token forged with alg=none or RS256).
+func keyFunc(t *jwt.Token) (any, error) {
+	if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+		return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+	}
+	return jwtSecret, nil
 }
 
 func GenerateToken(email string, userId int) (string, error) {
@@ -46,9 +61,7 @@ func GenerateToken(email string, userId int) (string, error) {
 }
 
 func VerifyToken(tokenString string) error {
-	token, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
-		return jwtSecret, nil
-	})
+	token, err := jwt.Parse(tokenString, keyFunc)
 	if err != nil {
 		return err
 	}
@@ -60,9 +73,7 @@ func VerifyToken(tokenString string) error {
 
 func GetUserDataFromToken(tokenString string) (userData, error) {
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
-		return jwtSecret, nil
-	})
+	token, err := jwt.ParseWithClaims(tokenString, claims, keyFunc)
 	if err != nil {
 		return userData{}, err
 	}

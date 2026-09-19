@@ -15,10 +15,15 @@ const(
 )
 
 type requestBody struct {
-	Name string `json:"name"`
-	Type string `json:"codeground_type"`
+	Name string `json:"name" binding:"required"`
+	Type string `json:"codeground_type" binding:"required"`
 }
 type codegroundType string
+
+// isValidType reports whether t is one of the supported codeground types.
+func isValidType(t string) bool {
+	return codegroundType(t) == REACT || codegroundType(t) == NODE
+}
 
 type codeground struct {
 	id              string
@@ -109,9 +114,12 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	err = c.BindJSON(&reqbody)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+	if err = c.ShouldBindJSON(&reqbody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name and codeground_type are required"})
+		return
+	}
+	if !isValidType(reqbody.Type) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "codeground_type must be REACT or NODE"})
 		return
 	}
 
@@ -153,7 +161,7 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 		return
 	}
 
-	err := q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).
+	err := q.db.QueryRow("SELECT id, user_id, name, codeground_type, created_at, updated_at FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).
 		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -182,7 +190,7 @@ func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
 		return
 	}
-	err = q.db.QueryRow("SELECT * FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).
+	err = q.db.QueryRow("SELECT id, user_id, name, codeground_type, created_at, updated_at FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).
 		Scan(&codeground.id, &codeground.userId, &codeground.name, &codeground.codeground_type, &codeground.createdAt, &codeground.updatedAt)
 
 	if err != nil {
@@ -193,9 +201,12 @@ func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 		}
 		return
 	}
-	err = c.BindJSON(&reqbody)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+	if err = c.ShouldBindJSON(&reqbody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name and codeground_type are required"})
+		return
+	}
+	if !isValidType(reqbody.Type) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "codeground_type must be REACT or NODE"})
 		return
 	}
 	_, err = q.db.Exec("UPDATE codegrounds SET name = ?, codeground_type = ? WHERE id = ? AND user_id = ?", reqbody.Name, reqbody.Type, codegroundId, userId)
@@ -204,7 +215,13 @@ func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 		return
 
 	}
-	c.JSON(http.StatusOK, gin.H{"data": codeground})
+	// Respond with the updated values rather than the pre-update row.
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{
+		"id":              codeground.id,
+		"user_id":         codeground.userId,
+		"name":            reqbody.Name,
+		"codeground_type": reqbody.Type,
+	}})
 }
 
 func (q *CodegroundController) DeleteCodeground(c *gin.Context) {

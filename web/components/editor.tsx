@@ -9,6 +9,7 @@ import "ace-builds/src-noconflict/theme-solarized_light";
 import "ace-builds/src-noconflict/ext-language_tools";
 import { useTheme } from "next-themes";
 import useSocket from "@/lib/socket";
+import { codegroundApiUrl, codegroundWsUrl } from "@/lib/config";
 
 interface EditorProps {
   file: string;
@@ -20,7 +21,7 @@ export function EditorWindow({ file, codegroundId }: EditorProps) {
   const { theme } = useTheme();
   const [selectedFileContent, setSelectedFileContent] = useState("");
   const isSaved = selectedFileContent === code;
-  const socket = useSocket(`ws://api-${codegroundId}.codify.localhost`);
+  const socket = useSocket(codegroundWsUrl(codegroundId));
   useEffect(() => {
     setCode(selectedFileContent);
   }, [selectedFileContent]);
@@ -44,7 +45,7 @@ export function EditorWindow({ file, codegroundId }: EditorProps) {
     if (!file) return;
     try {
       const response = await fetch(
-        `http://api-${codegroundId}.codify.localhost/files/content?file=${file}`,
+        `${codegroundApiUrl(codegroundId)}/files/content?file=${encodeURIComponent(file)}`,
       );
       if (!response.ok) {
         throw new Error(`Failed to load file (${response.status})`);
