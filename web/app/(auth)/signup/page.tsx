@@ -1,21 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import api from "@/lib/api";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
+import { FormTextField } from "@/components/auth/FormTextField";
 import { SignupFormValues, signupSchema } from "@/types/auth";
 import toast from "react-hot-toast";
 
@@ -56,58 +49,28 @@ export default function SignupPage() {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
+            <FormTextField
               control={form.control}
               name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Enter your email"
-                      type="email"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Email"
+              type="email"
+              placeholder="Enter your email"
             />
 
-            <FormField
+            <FormTextField
               control={form.control}
               name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Create a password"
-                      type="password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Password"
+              type="password"
+              placeholder="Create a password"
             />
 
-            <FormField
+            <FormTextField
               control={form.control}
               name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Confirm your password"
-                      type="password"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              label="Confirm Password"
+              type="password"
+              placeholder="Confirm your password"
             />
 
             <Button
