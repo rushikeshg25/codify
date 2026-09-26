@@ -2,6 +2,7 @@ package controller
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"server/internal/queue"
 	"time"
@@ -134,14 +135,20 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	q.q.PublishToQueue(queue.Codeground{
+	if err := q.q.PublishToQueue(queue.Codeground{
 		ID:             codegroundID,
 		UserID:         userId.(int),
 		Name:           reqbody.Name,
 		CodegroundType: reqbody.Type,
 		CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
 		UpdatedAt:      time.Now().Format("2006-01-02 15:04:05"),
-	}, "create")
+	}, "create"); err != nil {
+		// The row stays: the reconciler will provision or clean it up, and the
+		// user sees a failure rather than a codeground that never appears.
+		log.Printf("failed to queue create for codeground %s: %v", codegroundID, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not schedule the codeground, please retry"})
+		return
+	}
 	// Mint the codeground-scoped token up front so the browser never has to
 	// talk to the pod unauthenticated.
 	accessToken, err := GenerateCodegroundToken(codegroundID, userId.(int))
@@ -295,9 +302,13 @@ func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
 		return
 	}
-	q.q.PublishToQueue(queue.Codeground{
+	if err := q.q.PublishToQueue(queue.Codeground{
 		ID:     codegroundId,
 		UserID: userId.(int),
-	}, "delete")
+	}, "delete"); err != nil {
+		log.Printf("failed to queue delete for codeground %s: %v", codegroundId, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not schedule the teardown, please retry"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"data": nil})
 }

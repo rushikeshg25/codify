@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -63,7 +64,16 @@ func InitQueue(queueName string) (*amqp.Connection, *amqp.Channel, amqp.Queue) {
 	return conn, ch, q
 }
 
-func (q *Queue) PublishToQueue(codeground Codeground, msg string) {
+/*
+PublishToQueue hands a codeground action to the manager.
+
+This used to panic the whole API server when the broker was unreachable, which
+turned a transient RabbitMQ blip into an outage for every user — and, on the
+delete path, left Kubernetes resources orphaned with no database row left to
+find them by. Failures are returned so the caller can answer 5xx and leave
+state consistent.
+*/
+func (q *Queue) PublishToQueue(codeground Codeground, msg string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -73,9 +83,11 @@ func (q *Queue) PublishToQueue(codeground Codeground, msg string) {
 	}
 
 	body, err := json.Marshal(message)
-	failOnError(err, "Failed to serialize message")
+	if err != nil {
+		return fmt.Errorf("serialize codeground message: %w", err)
+	}
 
-	err = q.Ch.PublishWithContext(ctx,
+	if err := q.Ch.PublishWithContext(ctx,
 		"",       // exchange
 		q.Q.Name, // routing key
 		false,    // mandatory
@@ -83,7 +95,10 @@ func (q *Queue) PublishToQueue(codeground Codeground, msg string) {
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,
-		})
-	failOnError(err, "Failed to publish a message")
+		}); err != nil {
+		return fmt.Errorf("publish codeground message: %w", err)
+	}
+
 	log.Printf(" [x] Sent %s\n", string(body))
+	return nil
 }
