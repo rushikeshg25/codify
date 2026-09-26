@@ -197,6 +197,76 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"name": codeground.name, "id": codeground.id, "codeground_type": codeground.codeground_type, "access_token": accessToken})
 }
 
+/*
+GetCodegroundStatus reports where a codeground is in its lifecycle.
+
+The browser polls this before opening the websocket: a pod takes tens of
+seconds to schedule and pull, and until it is RUNNING a connection attempt just
+fails. It also distinguishes a slow start from a failed one, which previously
+only existed as a line in the manager's log.
+*/
+func (q *CodegroundController) GetCodegroundStatus(c *gin.Context) {
+	codegroundId := c.Param("codegroundId")
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
+
+	var status string
+	var detail sql.NullString
+	var lastActive string
+	err := q.db.QueryRow(
+		"SELECT status, status_detail, last_active_at FROM codegrounds WHERE id = ? AND user_id = ?",
+		codegroundId, userId,
+	).Scan(&status, &detail, &lastActive)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":         status,
+		"status_detail":  detail.String,
+		"last_active_at": lastActive,
+	})
+}
+
+/*
+Heartbeat records that someone still has this codeground open.
+
+The ping comes from the browser rather than the pod: the pod is denied egress
+to the cluster's private ranges, and "is a human still using this" is really a
+question about the tab, not the container.
+*/
+func (q *CodegroundController) Heartbeat(c *gin.Context) {
+	codegroundId := c.Param("codegroundId")
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
+
+	res, err := q.db.Exec(
+		"UPDATE codegrounds SET last_active_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?",
+		codegroundId, userId,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // GetCodegroundToken re-issues a codeground access token. The browser calls
 // this when its current token is close to expiring.
 func (q *CodegroundController) GetCodegroundToken(c *gin.Context) {
