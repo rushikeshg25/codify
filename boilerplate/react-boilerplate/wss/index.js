@@ -13,6 +13,30 @@ const {
   tokenFromRequest,
 } = require("./auth");
 
+/*
+ * Resolves a client-supplied file identifier to an absolute path, refusing
+ * anything that lands outside the project directory.
+ *
+ * The index is rebuilt from a directory walk, so a key can only point inside
+ * DIR — but the index is also the only thing standing between a crafted
+ * "../../etc/passwd" and a write, so check the resolved path explicitly rather
+ * than relying on that.
+ */
+function resolveProjectFile(file) {
+  if (typeof file !== "string" || file.length === 0) {
+    return null;
+  }
+
+  const indexed = fileMap.get(file);
+  const candidate = indexed || path.resolve(DIR, file);
+  const relative = path.relative(DIR, candidate);
+
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    return null;
+  }
+  return candidate;
+}
+
 // The browser origin allowed to reach this pod. Defaults to the local dev
 // frontend rather than "*", so a hostile page cannot drive someone's terminal.
 const ALLOWED_ORIGIN = process.env.CORS_ALLOW_ORIGIN || "http://localhost:3000";
@@ -75,9 +99,9 @@ io.on("connection", (socket) => {
   socket.emit("file:refresh");
 
   socket.on("file:change", async ({ file, content }) => {
-    const resolved = fileMap.get(file);
+    const resolved = resolveProjectFile(file);
     if (!resolved) {
-      console.warn("Ignoring write to unknown file:", file);
+      console.warn("Ignoring write to unknown or out-of-tree file:", file);
       return;
     }
     await fs.writeFile(resolved, content);
@@ -106,8 +130,7 @@ app.get("/files", requireToken, async (req, res) => {
 });
 
 app.get("/files/content", requireToken, async (req, res) => {
-  const file = req.query.file;
-  const resolved = fileMap.get(file);
+  const resolved = resolveProjectFile(req.query.file);
   if (!resolved) {
     return res.status(404).json({ error: "File not found" });
   }
