@@ -27,6 +27,26 @@ func NewK8s(clientset *kubernetes.Clientset, namespace string) *K8s {
 	}
 }
 
+/*
+codegroundLabels stamp every resource with who it belongs to.
+
+Names already encode the same thing, but parsing names is fragile and gives no
+way to list. With these labels the manager can enumerate everything it owns and
+compare that against the database, which is what makes orphan cleanup possible
+at all.
+*/
+func codegroundLabels(codeground Codeground) map[string]string {
+	return map[string]string{
+		"app.kubernetes.io/managed-by": "codify",
+		"codify/codeground":            codeground.Id,
+		"codify/user":                  fmt.Sprint(codeground.UserId),
+	}
+}
+
+// managedSelector matches every resource this manager created, regardless of
+// which codeground it belongs to.
+const managedSelector = "app.kubernetes.io/managed-by=codify"
+
 // secretName holds the codeground's derived signing key. Kept out of the
 // Deployment spec so the key is not readable by anyone with plain read access
 // to workloads.
@@ -48,7 +68,7 @@ func (k *K8s) CreateSecret(codeground Codeground) error {
 	}
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: codegroundLabels(codeground)},
 		Type:       corev1.SecretTypeOpaque,
 		StringData: map[string]string{
 			"token-key": codegroundKey(codeground.Id),
@@ -86,17 +106,18 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 		containerPort = 5173
 	}
 
+	podLabels := codegroundLabels(codeground)
+	podLabels["app"] = deploymentName
+
 	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: deploymentName},
+		ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Labels: codegroundLabels(codeground)},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(1),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": deploymentName},
 			},
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": deploymentName},
-				},
+				ObjectMeta: metav1.ObjectMeta{Labels: podLabels},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
@@ -195,7 +216,7 @@ func (k *K8s) CreateService(codeground Codeground) error {
 	}
 
 	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{Name: serviceName},
+		ObjectMeta: metav1.ObjectMeta{Name: serviceName, Labels: codegroundLabels(codeground)},
 		Spec: corev1.ServiceSpec{
 			Selector: map[string]string{"app": fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)},
 			Ports: []corev1.ServicePort{
@@ -232,7 +253,8 @@ func (k *K8s) CreateIngress(codeground Codeground) error {
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: ingressName,
+			Name:   ingressName,
+			Labels: codegroundLabels(codeground),
 			Annotations: map[string]string{
 				"nginx.ingress.kubernetes.io/rewrite-target": "/",
 			},
@@ -315,7 +337,7 @@ func (k *K8s) CreateNetworkPolicy(codeground Codeground) error {
 	wssPort := intstrPtr(wssPort)
 
 	policy := &networkingv1.NetworkPolicy{
-		ObjectMeta: metav1.ObjectMeta{Name: policyName},
+		ObjectMeta: metav1.ObjectMeta{Name: policyName, Labels: codegroundLabels(codeground)},
 		Spec: networkingv1.NetworkPolicySpec{
 			PodSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": deploymentName},
