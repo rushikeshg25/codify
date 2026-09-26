@@ -50,6 +50,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 			codeground.GET("", CodegroundController.GetCodegrounds)
 			codeground.POST("", CodegroundController.CreateCodeground)
 			codeground.GET("/:codegroundId", CodegroundController.GetCodeground)
+			codeground.GET("/:codegroundId/token", CodegroundController.GetCodegroundToken)
 			codeground.PUT("/:codegroundId", CodegroundController.UpdateCodeground)
 			codeground.DELETE("/:codegroundId", CodegroundController.DeleteCodeground)
 			//prob a start codeground

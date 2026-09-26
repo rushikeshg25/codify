@@ -10,8 +10,8 @@ import (
 	"github.com/jaevor/go-nanoid"
 )
 
-const(
-	alphabet="abcdefghijklmnopqrstuvwxyz"
+const (
+	alphabet = "abcdefghijklmnopqrstuvwxyz"
 )
 
 type requestBody struct {
@@ -99,12 +99,11 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": codegrounds})
 }
 
-
 func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 	var reqbody requestBody
 	var err error
-	
-	generator,err := nanoid.CustomUnicode(alphabet,8)
+
+	generator, err := nanoid.CustomUnicode(alphabet, 8)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -143,7 +142,15 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
 		UpdatedAt:      time.Now().Format("2006-01-02 15:04:05"),
 	}, "create")
-	c.JSON(http.StatusCreated, gin.H{"id": codegroundID, "name": reqbody.Name, "codeground_type": reqbody.Type, "user_id": userId, "created_at": time.Now().Format("2006-01-02 15:04:05"), "updated_at": time.Now().Format("2006-01-02 15:04:05")})
+	// Mint the codeground-scoped token up front so the browser never has to
+	// talk to the pod unauthenticated.
+	accessToken, err := GenerateCodegroundToken(codegroundID, userId.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"id": codegroundID, "name": reqbody.Name, "codeground_type": reqbody.Type, "user_id": userId, "access_token": accessToken, "created_at": time.Now().Format("2006-01-02 15:04:05"), "updated_at": time.Now().Format("2006-01-02 15:04:05")})
 
 }
 
@@ -172,7 +179,49 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"name": codeground.name, "id": codeground.id, "codeground_type": codeground.codeground_type})
+	// The ownership check above (id AND user_id) is what authorises this
+	// token, so it can only ever be issued to the codeground's owner.
+	accessToken, err := GenerateCodegroundToken(codeground.id, codeground.userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"name": codeground.name, "id": codeground.id, "codeground_type": codeground.codeground_type, "access_token": accessToken})
+}
+
+// GetCodegroundToken re-issues a codeground access token. The browser calls
+// this when its current token is close to expiring.
+func (q *CodegroundController) GetCodegroundToken(c *gin.Context) {
+	codegroundId := c.Param("codegroundId")
+	if codegroundId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
+		return
+	}
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
+
+	var ownerId int
+	err := q.db.QueryRow("SELECT user_id FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).Scan(&ownerId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	accessToken, err := GenerateCodegroundToken(codegroundId, ownerId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
 }
 
 func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
