@@ -7,7 +7,11 @@ const cors = require("cors");
 const chokidar = require("chokidar");
 const DIR = path.resolve(__dirname, "../codeground");
 const pty = require("node-pty");
-const { verifyToken, tokenFromHandshake } = require("./auth");
+const {
+  verifyToken,
+  tokenFromHandshake,
+  tokenFromRequest,
+} = require("./auth");
 
 // The browser origin allowed to reach this pod. Defaults to the local dev
 // frontend rather than "*", so a hostile page cannot drive someone's terminal.
@@ -34,6 +38,17 @@ app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
  * out a pty running as the container user, and the file routes read and write
  * the project tree. Reject the connection before any of that is wired up.
  */
+/** Express guard mirroring the socket check above. */
+function requireToken(req, res, next) {
+  try {
+    req.claims = verifyToken(tokenFromRequest(req));
+    next();
+  } catch (err) {
+    console.warn("Rejected request to", req.path, "-", err.message);
+    res.status(401).json({ error: "unauthorized" });
+  }
+}
+
 io.use((socket, next) => {
   try {
     socket.data.claims = verifyToken(tokenFromHandshake(socket));
@@ -72,7 +87,7 @@ io.on("connection", (socket) => {
   });
 });
 
-app.get("/files", async (req, res) => {
+app.get("/files", requireToken, async (req, res) => {
   try {
     const fileTree = await generateFileTree(DIR, fileMap);
     return res.json({ tree: fileTree });
@@ -85,11 +100,19 @@ app.get("/files", async (req, res) => {
   }
 });
 
-app.get("/files/content", async (req, res) => {
+app.get("/files/content", requireToken, async (req, res) => {
   const file = req.query.file;
-  console.log(fileMap.get(file));
-  const content = await fs.readFile(fileMap.get(file), "utf-8");
-  return res.json({ content });
+  const resolved = fileMap.get(file);
+  if (!resolved) {
+    return res.status(404).json({ error: "File not found" });
+  }
+  try {
+    const content = await fs.readFile(resolved, "utf-8");
+    return res.json({ content });
+  } catch (error) {
+    console.error("Failed to read file:", error);
+    return res.status(500).json({ error: "Failed to read file" });
+  }
 });
 
 server.listen(9000, () => console.log(`server running on port 9000`));
