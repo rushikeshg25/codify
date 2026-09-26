@@ -70,16 +70,47 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse("100m"),
-									corev1.ResourceMemory: resource.MustParse("128Mi"),
+									corev1.ResourceCPU:              resource.MustParse("100m"),
+									corev1.ResourceMemory:           resource.MustParse("128Mi"),
+									corev1.ResourceEphemeralStorage: resource.MustParse("256Mi"),
 								},
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse("500m"),
 									corev1.ResourceMemory: resource.MustParse("512Mi"),
+									// Without this one `dd if=/dev/zero` fills the
+									// node disk and evicts neighbouring pods.
+									corev1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								// The image installs into /app as root at build
+								// time; at run time nothing needs privilege.
+								RunAsNonRoot:             boolPtr(true),
+								RunAsUser:                int64Ptr(codegroundUID),
+								RunAsGroup:               int64Ptr(codegroundGID),
+								AllowPrivilegeEscalation: boolPtr(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+								// Not read-only: the whole point of a codeground
+								// is that the user writes files and runs installs.
+								// Escape surface is cut by the capability drop and
+								// the seccomp profile below instead.
+								ReadOnlyRootFilesystem: boolPtr(false),
 							},
 						},
 					},
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot:   boolPtr(true),
+						RunAsUser:      int64Ptr(codegroundUID),
+						RunAsGroup:     int64Ptr(codegroundGID),
+						FSGroup:        int64Ptr(codegroundGID),
+						SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
+					},
+					// User code has no business talking to the API server, and
+					// a mounted token is the shortest path from RCE in a pod to
+					// control of the cluster.
+					AutomountServiceAccountToken: boolPtr(false),
 				},
 			},
 		},
@@ -220,6 +251,12 @@ func (k *K8s) DeleteIngress(codeground Codeground) error {
 	return k.clientset.NetworkingV1().Ingresses(k.namespace).Delete(ctx, ingressName, metav1.DeleteOptions{})
 }
 
+// codegroundUID/GID are the unprivileged user the boilerplate images create.
+const (
+	codegroundUID = 1000
+	codegroundGID = 1000
+)
+
 func ctxWithTimeout() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 30*time.Second)
 }
@@ -231,3 +268,7 @@ func intstrPtr(i int32) intstr.IntOrString {
 }
 
 func int32Ptr(i int32) *int32 { return &i }
+
+func int64Ptr(i int64) *int64 { return &i }
+
+func boolPtr(b bool) *bool { return &b }
