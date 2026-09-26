@@ -112,6 +112,22 @@ export default function CodegroundPage() {
     };
   }, [socket?.connected]);
 
+  // Heartbeat — tells the API someone still has this codeground open, so the
+  // reaper leaves it alone. Stops as soon as the page unmounts.
+  useEffect(() => {
+    if (!codeground) return;
+
+    const ping = () => {
+      api.post(`/codeground/${codeground.id}/heartbeat`).catch(() => {
+        // A missed heartbeat is harmless; the next one covers it.
+      });
+    };
+
+    ping();
+    const timer = setInterval(ping, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [codeground]);
+
   // File tree — initial load plus refresh on sandbox file changes.
   useEffect(() => {
     getFileTree();

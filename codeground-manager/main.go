@@ -64,6 +64,7 @@ func main() {
 	defer cancel()
 
 	StartReconciler(ctx, db, k8s)
+	StartReaper(ctx, db, k8s)
 
 	conn, err := amqp.Dial(envOr("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"))
 	failOnError(err, "Failed to connect to RabbitMQ")
