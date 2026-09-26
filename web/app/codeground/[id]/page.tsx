@@ -21,13 +21,14 @@ import { Terminal as TerminalIcon, Loader2 } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 
 interface TreeNode {
-  [key: string]: TreeNode | null;
+  [key: string]: TreeNode | string | null;
 }
 
 interface Codeground {
   id: string;
   name: string;
   codeground_type: string;
+  access_token: string;
 }
 
 export default function CodegroundPage() {
@@ -50,7 +51,10 @@ export default function CodegroundPage() {
 
   // useSocket ignores an empty url, so it's safe to call before the codeground
   // has loaded — this keeps all hooks unconditional (Rules of Hooks).
-  const socket = useSocket(codeground ? codegroundWsUrl(codeground.id) : "");
+  const socket = useSocket(
+    codeground ? codegroundWsUrl(codeground.id) : "",
+    codeground?.access_token,
+  );
   const [fileTree, setFileTree] = useState<TreeNode>({});
   const [selectedFile, setSelectedFile] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +69,7 @@ export default function CodegroundPage() {
       setError(null);
       const response = await axios.get(
         `${codegroundApiUrl(codeground.id)}/files`,
+        { headers: { Authorization: `Bearer ${codeground.access_token}` } },
       );
       if (response.data && response.data.tree) {
         setFileTree(response.data.tree);
@@ -106,6 +111,22 @@ export default function CodegroundPage() {
       isRendered.current = false;
     };
   }, [socket?.connected]);
+
+  // Heartbeat — tells the API someone still has this codeground open, so the
+  // reaper leaves it alone. Stops as soon as the page unmounts.
+  useEffect(() => {
+    if (!codeground) return;
+
+    const ping = () => {
+      api.post(`/codeground/${codeground.id}/heartbeat`).catch(() => {
+        // A missed heartbeat is harmless; the next one covers it.
+      });
+    };
+
+    ping();
+    const timer = setInterval(ping, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [codeground]);
 
   // File tree — initial load plus refresh on sandbox file changes.
   useEffect(() => {
@@ -173,7 +194,11 @@ export default function CodegroundPage() {
                   Open a file to edit
                 </div>
               ) : (
-                <EditorWindow file={selectedFile} codegroundId={codeground.id} />
+                <EditorWindow
+                  file={selectedFile}
+                  codegroundId={codeground.id}
+                  accessToken={codeground.access_token}
+                />
               )}
             </ResizablePanel>
             <ResizableHandle />

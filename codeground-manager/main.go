@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
@@ -52,6 +53,19 @@ func main() {
 
 	namespace := envOr("K8S_NAMESPACE", "default")
 	k8s := NewK8s(clientset, namespace)
+
+	db, err := openDB()
+	if err != nil {
+		log.Fatalf("Failed to connect to the database: %v", err)
+	}
+	defer db.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	StartReconciler(ctx, db, k8s)
+	StartReaper(ctx, db, k8s)
+
 	conn, err := amqp.Dial(envOr("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"))
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -62,7 +76,7 @@ func main() {
 
 	q, err := ch.QueueDeclare(
 		"codeground-queue", // name
-		false,              // durable
+		true,               // durable
 		false,              // delete when unused
 		false,              // exclusive
 		false,              // no-wait
@@ -70,10 +84,15 @@ func main() {
 	)
 	failOnError(err, "Failed to declare a queue")
 
+	// One unacked message at a time: provisioning is slow and serial, and
+	// without this a single manager claims the whole backlog and then loses it
+	// if it restarts.
+	failOnError(ch.Qos(1, 0, false), "Failed to set channel QoS")
+
 	msgs, err := ch.Consume(
 		q.Name, // queue
 		"",     // consumer
-		true,   // auto-ack
+		false,  // auto-ack: acknowledge only once the work is actually done
 		false,  // exclusive
 		false,  // no-local
 		false,  // no-wait
@@ -89,25 +108,50 @@ func main() {
 			var queueMsg QueueMessage
 			err := json.Unmarshal(d.Body, &queueMsg)
 			if err != nil {
+				// Undecodable: requeueing would just spin forever.
 				log.Printf("Error decoding message: %s", err)
+				_ = d.Nack(false, false)
 				continue
 			}
 			codeground := queueMsg.Codeground
 			codeground.K8s = k8s
 
+			var actionErr error
 			switch queueMsg.Msg {
 			case "create":
 				log.Printf("Processing 'create' action for codeground: %+v\n", queueMsg.Codeground)
-				codeground.CreateCodeground()
+				setStatus(db, codeground.Id, StatusProvisioning, "")
+				actionErr = codeground.CreateCodeground()
+				if actionErr == nil {
+					setStatus(db, codeground.Id, StatusRunning, "")
+				}
 			case "delete":
 				log.Printf("Processing 'delete' action for codeground: %+v\n", queueMsg.Codeground)
-				codeground.DeleteCodeground()
+				actionErr = codeground.DeleteCodeground()
 			case "stop":
 				log.Printf("Processing 'stop' action for codeground: %+v\n", queueMsg.Codeground)
-				codeground.StopCodeground()
+				actionErr = codeground.StopCodeground()
+				if actionErr == nil {
+					setStatus(db, codeground.Id, StatusStopped, "")
+				}
 			default:
 				log.Printf("Unknown action action: %s\n", queueMsg.Msg)
 			}
+
+			if actionErr != nil {
+				log.Printf("Action %q failed for codeground %s: %v", queueMsg.Msg, codeground.Id, actionErr)
+				if queueMsg.Msg != "delete" {
+					setStatus(db, codeground.Id, StatusFailed, actionErr.Error())
+				}
+				// Retry once, then drop it rather than looping on a message
+				// that is never going to succeed. The reconciler is the
+				// backstop for anything left half-built.
+				requeue := !d.Redelivered
+				_ = d.Nack(false, requeue)
+				continue
+			}
+
+			_ = d.Ack(false)
 		}
 	}()
 

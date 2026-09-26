@@ -1,14 +1,21 @@
 import { io, Socket } from "socket.io-client";
 import { useEffect, useState } from "react";
 
-const useSocket = (url: string) => {
+/**
+ * Connects to a codeground's websocket.
+ *
+ * The pod rejects unauthenticated handshakes, so this stays idle until both
+ * the url and a codeground-scoped access token are available.
+ */
+const useSocket = (url: string, token?: string) => {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    if (!url) return;
+    if (!url || !token) return;
 
     const newSocket = io(url, {
       transports: ["websocket"],
+      auth: { token },
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
@@ -29,7 +36,7 @@ const useSocket = (url: string) => {
         setSocket(null);
       }
     };
-  }, [url]);
+  }, [url, token]);
 
   return socket;
 };
