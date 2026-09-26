@@ -293,22 +293,41 @@ func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
 		return
 	}
-	res, err := q.db.Exec("DELETE FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId)
+	/*
+		Order matters. Removing the row first and publishing second means a
+		broker failure leaves Kubernetes resources running with nothing in the
+		database pointing at them — invisible and unbillable, but still
+		consuming a node.
+
+		Confirming ownership, publishing, and only then deleting the row means
+		the worst case is a row whose resources are already gone, which the user
+		can retry and the reconciler can settle.
+	*/
+	var ownerId int
+	err = q.db.QueryRow("SELECT user_id FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).Scan(&ownerId)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
 		return
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
-		return
-	}
+
 	if err := q.q.PublishToQueue(queue.Codeground{
 		ID:     codegroundId,
-		UserID: userId.(int),
+		UserID: ownerId,
 	}, "delete"); err != nil {
 		log.Printf("failed to queue delete for codeground %s: %v", codegroundId, err)
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not schedule the teardown, please retry"})
 		return
 	}
+
+	if _, err := q.db.Exec("DELETE FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId); err != nil {
+		log.Printf("teardown queued but row delete failed for codeground %s: %v", codegroundId, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"data": nil})
 }
