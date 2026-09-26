@@ -27,6 +27,44 @@ func NewK8s(clientset *kubernetes.Clientset, namespace string) *K8s {
 	}
 }
 
+// secretName holds the codeground's derived signing key. Kept out of the
+// Deployment spec so the key is not readable by anyone with plain read access
+// to workloads.
+func secretName(codeground Codeground) string {
+	return fmt.Sprintf("codeground-secret-%d-%s", codeground.UserId, codeground.Id)
+}
+
+func (k *K8s) CreateSecret(codeground Codeground) error {
+	secretClient := k.clientset.CoreV1().Secrets(k.namespace)
+
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+
+	name := secretName(codeground)
+	_, err := secretClient.Get(ctx, name, metav1.GetOptions{})
+	if err == nil {
+		log.Println("Secret already exists:", name)
+		return nil
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: name},
+		Type:       corev1.SecretTypeOpaque,
+		StringData: map[string]string{
+			"token-key": codegroundKey(codeground.Id),
+		},
+	}
+
+	_, err = secretClient.Create(ctx, secret, metav1.CreateOptions{})
+	return err
+}
+
+func (k *K8s) DeleteSecret(codeground Codeground) error {
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+	return k.clientset.CoreV1().Secrets(k.namespace).Delete(ctx, secretName(codeground), metav1.DeleteOptions{})
+}
+
 func (k *K8s) CreateDeployment(codeground Codeground) error {
 	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
 
@@ -67,6 +105,22 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 							Ports: []corev1.ContainerPort{
 								{ContainerPort: containerPort},
 								{ContainerPort: 9000},
+							},
+							// The agent refuses to start without these, which is
+							// deliberate: a pod with no key would otherwise serve
+							// an unauthenticated shell.
+							Env: []corev1.EnvVar{
+								{Name: "CODEGROUND_ID", Value: codeground.Id},
+								{
+									Name: "CODEGROUND_TOKEN_KEY",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											LocalObjectReference: corev1.LocalObjectReference{Name: secretName(codeground)},
+											Key:                  "token-key",
+										},
+									},
+								},
+								{Name: "CORS_ALLOW_ORIGIN", Value: corsOrigin()},
 							},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
@@ -349,6 +403,12 @@ const (
 // wssPort is the in-pod agent (terminal + file API) port, the same for both
 // codeground types.
 const wssPort int32 = 9000
+
+// corsOrigin is the browser origin the in-pod agent will accept. It has to
+// match the frontend the user actually loads.
+func corsOrigin() string {
+	return envOr("CORS_ALLOW_ORIGIN", "http://localhost:3000")
+}
 
 // appPortFor returns the port the user's own dev server listens on.
 func appPortFor(codeground Codeground) int32 {
