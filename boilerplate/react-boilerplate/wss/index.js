@@ -7,6 +7,11 @@ const cors = require("cors");
 const chokidar = require("chokidar");
 const DIR = path.resolve(__dirname, "../codeground");
 const pty = require("node-pty");
+const { verifyToken, tokenFromHandshake } = require("./auth");
+
+// The browser origin allowed to reach this pod. Defaults to the local dev
+// frontend rather than "*", so a hostile page cannot drive someone's terminal.
+const ALLOWED_ORIGIN = process.env.CORS_ALLOW_ORIGIN || "http://localhost:3000";
 
 const ptyProcess = pty.spawn("bash", [], {
   name: "xterm-color",
@@ -19,10 +24,25 @@ const fileMap = new Map();
 const app = express();
 const server = http.createServer(app);
 const io = new SocketServer({
-  cors: "*",
+  cors: { origin: ALLOWED_ORIGIN, credentials: true },
 });
 
-app.use(cors());
+app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
+
+/*
+ * Nothing below this line is safe to expose unauthenticated: the socket hands
+ * out a pty running as the container user, and the file routes read and write
+ * the project tree. Reject the connection before any of that is wired up.
+ */
+io.use((socket, next) => {
+  try {
+    socket.data.claims = verifyToken(tokenFromHandshake(socket));
+    next();
+  } catch (err) {
+    console.warn("Rejected socket connection:", err.message);
+    next(new Error("unauthorized"));
+  }
+});
 
 io.attach(server);
 
@@ -35,7 +55,7 @@ ptyProcess.onData((data) => {
 });
 
 io.on("connection", (socket) => {
-  console.log(`Socket connected`, socket.id);
+  console.log(`Socket connected`, socket.id, "user", socket.data.claims.userId);
   console.log(`Total connected clients: ${io.engine.clientsCount}`);
   socket.emit("file:refresh");
 
