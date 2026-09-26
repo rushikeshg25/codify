@@ -52,6 +52,13 @@ func main() {
 
 	namespace := envOr("K8S_NAMESPACE", "default")
 	k8s := NewK8s(clientset, namespace)
+
+	db, err := openDB()
+	if err != nil {
+		log.Fatalf("Failed to connect to the database: %v", err)
+	}
+	defer db.Close()
+
 	conn, err := amqp.Dial(envOr("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"))
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
@@ -106,19 +113,29 @@ func main() {
 			switch queueMsg.Msg {
 			case "create":
 				log.Printf("Processing 'create' action for codeground: %+v\n", queueMsg.Codeground)
+				setStatus(db, codeground.Id, StatusProvisioning, "")
 				actionErr = codeground.CreateCodeground()
+				if actionErr == nil {
+					setStatus(db, codeground.Id, StatusRunning, "")
+				}
 			case "delete":
 				log.Printf("Processing 'delete' action for codeground: %+v\n", queueMsg.Codeground)
 				actionErr = codeground.DeleteCodeground()
 			case "stop":
 				log.Printf("Processing 'stop' action for codeground: %+v\n", queueMsg.Codeground)
 				actionErr = codeground.StopCodeground()
+				if actionErr == nil {
+					setStatus(db, codeground.Id, StatusStopped, "")
+				}
 			default:
 				log.Printf("Unknown action action: %s\n", queueMsg.Msg)
 			}
 
 			if actionErr != nil {
 				log.Printf("Action %q failed for codeground %s: %v", queueMsg.Msg, codeground.Id, actionErr)
+				if queueMsg.Msg != "delete" {
+					setStatus(db, codeground.Id, StatusFailed, actionErr.Error())
+				}
 				// Retry once, then drop it rather than looping on a message
 				// that is never going to succeed. The reconciler is the
 				// backstop for anything left half-built.
