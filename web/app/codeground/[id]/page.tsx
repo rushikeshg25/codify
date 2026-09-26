@@ -21,7 +21,7 @@ import { Terminal as TerminalIcon, Loader2 } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 
 interface TreeNode {
-  [key: string]: TreeNode | null;
+  [key: string]: TreeNode | string | null;
 }
 
 interface Codeground {

@@ -75,7 +75,12 @@ io.on("connection", (socket) => {
   socket.emit("file:refresh");
 
   socket.on("file:change", async ({ file, content }) => {
-    await fs.writeFile(fileMap.get(file), content);
+    const resolved = fileMap.get(file);
+    if (!resolved) {
+      console.warn("Ignoring write to unknown file:", file);
+      return;
+    }
+    await fs.writeFile(resolved, content);
   });
 
   socket.on("terminal:write", (data) => {
@@ -117,6 +122,15 @@ app.get("/files/content", requireToken, async (req, res) => {
 
 server.listen(9000, () => console.log(`server running on port 9000`));
 
+/*
+ * Builds the file tree and indexes it by path relative to DIR.
+ *
+ * The index used to be keyed on the bare filename, so any two files sharing a
+ * name — index.js, package.json, App.css in nested folders — overwrote each
+ * other and an edit to one could be written over the other. Leaf nodes now
+ * carry their relative path, which is what the client sends back to identify a
+ * file.
+ */
 async function generateFileTree(directory, fileMap) {
   const tree = {};
 
@@ -125,18 +139,18 @@ async function generateFileTree(directory, fileMap) {
 
     for (const file of files) {
       const filePath = path.join(currentDir, file);
+      const relativePath = path.relative(directory, filePath);
       const stat = await fs.stat(filePath);
 
       if (stat.isDirectory()) {
+        if (file === "node_modules") {
+          continue;
+        }
         currentTree[file] = {};
         await buildTree(filePath, currentTree[file]);
       } else {
-        if (filePath.includes("node_modules")) {
-          continue;
-        } else {
-          currentTree[file] = null;
-        }
-        fileMap.set(file, filePath);
+        currentTree[file] = relativePath;
+        fileMap.set(relativePath, filePath);
       }
     }
   }
