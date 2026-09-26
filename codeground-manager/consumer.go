@@ -20,6 +20,8 @@ func logError(err error) {
 
 func (c *Codeground) CreateCodeground() {
 	var err error
+	err = c.K8s.CreateNetworkPolicy(*c)
+	logError(err)
 	err = c.K8s.CreateDeployment(*c)
 	logError(err)
 	err = c.K8s.CreateService(*c)
@@ -32,6 +34,7 @@ func (c *Codeground) DeleteCodeground() {
 	logError(c.K8s.DeleteIngress(*c))
 	logError(c.K8s.DeleteService(*c))
 	logError(c.K8s.DeleteDeployment(*c))
+	logError(c.K8s.DeleteNetworkPolicy(*c))
 }
 
 func (c *Codeground) StartCodeground() {}

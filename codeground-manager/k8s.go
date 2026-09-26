@@ -230,6 +230,95 @@ func (k *K8s) CreateIngress(codeground Codeground) error {
 	return err
 }
 
+/*
+CreateNetworkPolicy locks down what a codeground pod can talk to.
+
+Without a policy the pod can reach MySQL, RabbitMQ, the API server, sibling
+codegrounds and — most dangerously — the cloud metadata endpoint at
+169.254.169.254, which hands out the node's IAM credentials. Egress is
+therefore restricted to DNS plus the public internet with the private and
+link-local ranges carved out, which still leaves package installs working.
+*/
+func (k *K8s) CreateNetworkPolicy(codeground Codeground) error {
+	policyName := fmt.Sprintf("codeground-netpol-%d-%s", codeground.UserId, codeground.Id)
+	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
+
+	policyClient := k.clientset.NetworkingV1().NetworkPolicies(k.namespace)
+
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+
+	_, err := policyClient.Get(ctx, policyName, metav1.GetOptions{})
+	if err == nil {
+		log.Println("NetworkPolicy already exists:", policyName)
+		return nil
+	}
+
+	tcp := corev1.ProtocolTCP
+	udp := corev1.ProtocolUDP
+	dnsPort := intstrPtr(53)
+	appPort := intstrPtr(appPortFor(codeground))
+	wssPort := intstrPtr(wssPort)
+
+	policy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: policyName},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": deploymentName},
+			},
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+				networkingv1.PolicyTypeEgress,
+			},
+			// Reachable only on the app port and the agent port. Narrowing the
+			// source to the ingress controller's namespace is the next step;
+			// it needs that namespace to carry a known label.
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					Ports: []networkingv1.NetworkPolicyPort{
+						{Protocol: &tcp, Port: &appPort},
+						{Protocol: &tcp, Port: &wssPort},
+					},
+				},
+			},
+			Egress: []networkingv1.NetworkPolicyEgressRule{
+				{
+					Ports: []networkingv1.NetworkPolicyPort{
+						{Protocol: &udp, Port: &dnsPort},
+						{Protocol: &tcp, Port: &dnsPort},
+					},
+				},
+				{
+					To: []networkingv1.NetworkPolicyPeer{
+						{
+							IPBlock: &networkingv1.IPBlock{
+								CIDR: "0.0.0.0/0",
+								Except: []string{
+									"10.0.0.0/8",
+									"172.16.0.0/12",
+									"192.168.0.0/16",
+									// Cloud instance metadata; node IAM credentials.
+									"169.254.0.0/16",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err = policyClient.Create(ctx, policy, metav1.CreateOptions{})
+	return err
+}
+
+func (k *K8s) DeleteNetworkPolicy(codeground Codeground) error {
+	policyName := fmt.Sprintf("codeground-netpol-%d-%s", codeground.UserId, codeground.Id)
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+	return k.clientset.NetworkingV1().NetworkPolicies(k.namespace).Delete(ctx, policyName, metav1.DeleteOptions{})
+}
+
 func (k *K8s) DeleteDeployment(codeground Codeground) error {
 	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
 	ctx, cancel := ctxWithTimeout()
@@ -256,6 +345,18 @@ const (
 	codegroundUID = 1000
 	codegroundGID = 1000
 )
+
+// wssPort is the in-pod agent (terminal + file API) port, the same for both
+// codeground types.
+const wssPort int32 = 9000
+
+// appPortFor returns the port the user's own dev server listens on.
+func appPortFor(codeground Codeground) int32 {
+	if codeground.CodegroundType == "NODE" {
+		return 8090
+	}
+	return 5173
+}
 
 func ctxWithTimeout() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), 30*time.Second)
