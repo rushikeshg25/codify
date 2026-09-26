@@ -95,18 +95,23 @@ func main() {
 			codeground := queueMsg.Codeground
 			codeground.K8s = k8s
 
+			var actionErr error
 			switch queueMsg.Msg {
 			case "create":
 				log.Printf("Processing 'create' action for codeground: %+v\n", queueMsg.Codeground)
-				codeground.CreateCodeground()
+				actionErr = codeground.CreateCodeground()
 			case "delete":
 				log.Printf("Processing 'delete' action for codeground: %+v\n", queueMsg.Codeground)
-				codeground.DeleteCodeground()
+				actionErr = codeground.DeleteCodeground()
 			case "stop":
 				log.Printf("Processing 'stop' action for codeground: %+v\n", queueMsg.Codeground)
-				codeground.StopCodeground()
+				actionErr = codeground.StopCodeground()
 			default:
 				log.Printf("Unknown action action: %s\n", queueMsg.Msg)
+			}
+
+			if actionErr != nil {
+				log.Printf("Action %q failed for codeground %s: %v", queueMsg.Msg, codeground.Id, actionErr)
 			}
 		}
 	}()
