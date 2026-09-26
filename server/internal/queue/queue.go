@@ -51,12 +51,15 @@ func InitQueue(queueName string) (*amqp.Connection, *amqp.Channel, amqp.Queue) {
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a channel")
 
+	// Durable, so a broker restart does not silently discard every pending
+	// create and delete. Must match the manager's declaration exactly or the
+	// channel is closed with PRECONDITION_FAILED.
 	q, err := ch.QueueDeclare(
 		queueName,
-		false,
-		false,
-		false,
-		false,
+		true,  // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
 		nil,
 	)
 	failOnError(err, "Failed to declare a queue")
@@ -93,8 +96,9 @@ func (q *Queue) PublishToQueue(codeground Codeground, msg string) error {
 		false,    // mandatory
 		false,    // immediate
 		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
+			ContentType:  "application/json",
+			DeliveryMode: amqp.Persistent,
+			Body:         body,
 		}); err != nil {
 		return fmt.Errorf("publish codeground message: %w", err)
 	}

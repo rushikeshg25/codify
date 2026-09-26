@@ -62,7 +62,7 @@ func main() {
 
 	q, err := ch.QueueDeclare(
 		"codeground-queue", // name
-		false,              // durable
+		true,               // durable
 		false,              // delete when unused
 		false,              // exclusive
 		false,              // no-wait
@@ -70,10 +70,15 @@ func main() {
 	)
 	failOnError(err, "Failed to declare a queue")
 
+	// One unacked message at a time: provisioning is slow and serial, and
+	// without this a single manager claims the whole backlog and then loses it
+	// if it restarts.
+	failOnError(ch.Qos(1, 0, false), "Failed to set channel QoS")
+
 	msgs, err := ch.Consume(
 		q.Name, // queue
 		"",     // consumer
-		true,   // auto-ack
+		false,  // auto-ack: acknowledge only once the work is actually done
 		false,  // exclusive
 		false,  // no-local
 		false,  // no-wait
@@ -89,7 +94,9 @@ func main() {
 			var queueMsg QueueMessage
 			err := json.Unmarshal(d.Body, &queueMsg)
 			if err != nil {
+				// Undecodable: requeueing would just spin forever.
 				log.Printf("Error decoding message: %s", err)
+				_ = d.Nack(false, false)
 				continue
 			}
 			codeground := queueMsg.Codeground
@@ -112,7 +119,15 @@ func main() {
 
 			if actionErr != nil {
 				log.Printf("Action %q failed for codeground %s: %v", queueMsg.Msg, codeground.Id, actionErr)
+				// Retry once, then drop it rather than looping on a message
+				// that is never going to succeed. The reconciler is the
+				// backstop for anything left half-built.
+				requeue := !d.Redelivered
+				_ = d.Nack(false, requeue)
+				continue
 			}
+
+			_ = d.Ack(false)
 		}
 	}()
 
