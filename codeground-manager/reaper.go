@@ -16,8 +16,9 @@ usage level that is the dominant cost of running the platform, and none of it
 is doing anything for anyone.
 
 Idleness is measured by last_active_at, which the browser refreshes while the
-codeground is open. A reaped codeground is marked STOPPED rather than deleted:
-the row survives, so the user can see what happened and start it again.
+codeground is open. Reaping scales the deployment to zero rather than deleting
+it, so the volume, hostname and the user's files all survive — coming back to a
+reaped codeground and pressing start returns it exactly as it was.
 */
 func StartReaper(ctx context.Context, db *sql.DB, k8s *K8s) {
 	interval := durationOr("REAP_INTERVAL", 5*time.Minute)
@@ -71,11 +72,11 @@ func reapOnce(db *sql.DB, k8s *K8s, idleAfter time.Duration) error {
 	for _, cg := range idle {
 		log.Printf("Reaper: codeground %s idle for over %s, stopping", cg.Id, idleAfter)
 		cg.K8s = k8s
-		if err := cg.DeleteCodeground(); err != nil {
+		if err := cg.StopCodeground(); err != nil {
 			log.Printf("Reaper: failed to stop idle codeground %s: %v", cg.Id, err)
 			continue
 		}
-		setStatus(db, cg.Id, StatusStopped, "stopped automatically after inactivity")
+		setStatus(db, cg.Id, StatusStopped, "stopped automatically after inactivity; start it again to resume")
 	}
 
 	return nil
