@@ -3,7 +3,7 @@
 import NewCodeground from "@/components/new-codeground";
 import { Card } from "@/components/ui/card";
 import api from "@/lib/api";
-import { FolderGit2, Trash2 } from "lucide-react";
+import { FolderGit2, Trash2, Play, Square, Loader2 } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
@@ -23,13 +23,36 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+type CodegroundStatus =
+  | "PROVISIONING"
+  | "RUNNING"
+  | "STOPPED"
+  | "FAILED";
+
 type CodegroundItem = {
   id: string;
   codeground_type: string;
   name: string;
+  status: CodegroundStatus;
   updatedAt: string;
   createdAt: string;
   userId: number;
+};
+
+// A stopped codeground keeps its volume, so starting it again returns the same
+// files at the same hostname — only its pod is gone.
+const STATUS_LABEL: Record<CodegroundStatus, string> = {
+  PROVISIONING: "Starting",
+  RUNNING: "Running",
+  STOPPED: "Stopped",
+  FAILED: "Failed",
+};
+
+const STATUS_DOT: Record<CodegroundStatus, string> = {
+  PROVISIONING: "bg-yellow-500",
+  RUNNING: "bg-green-500",
+  STOPPED: "bg-muted-foreground",
+  FAILED: "bg-destructive",
 };
 
 const fetchCodegrounds = async () => {
@@ -93,6 +116,35 @@ export default function DashboardPage() {
       toast.error("Failed to delete codeground");
     }
   };
+
+  const setStatusInCache = (id: string, status: CodegroundStatus) => {
+    queryClient.setQueryData(
+      ["codegrounds"],
+      (oldData: CodegroundItem[] | undefined) =>
+        (oldData || []).map((cg) => (cg.id === id ? { ...cg, status } : cg)),
+    );
+  };
+
+  const handleStart = async (id: string) => {
+    setStatusInCache(id, "PROVISIONING");
+    try {
+      await api.post(`/codeground/${id}/start`);
+      toast.success("Starting codeground");
+    } catch {
+      setStatusInCache(id, "STOPPED");
+      toast.error("Failed to start codeground");
+    }
+  };
+
+  const handleStop = async (id: string) => {
+    try {
+      await api.post(`/codeground/${id}/stop`);
+      setStatusInCache(id, "STOPPED");
+      toast.success("Stopping codeground; your files are kept");
+    } catch {
+      toast.error("Failed to stop codeground");
+    }
+  };
   return (
     <div className="min-h-screen p-8 bg-background">
       <div className="mx-auto space-y-8 max-w-7xl">
@@ -123,6 +175,8 @@ export default function DashboardPage() {
                 key={codeground.id}
                 codeground={codeground}
                 onDelete={handleDelete}
+                onStart={handleStart}
+                onStop={handleStop}
               />
             ))
           )}
@@ -135,12 +189,22 @@ export default function DashboardPage() {
 const CodegroundCard = ({
   codeground,
   onDelete,
+  onStart,
+  onStop,
 }: {
   codeground: CodegroundItem;
   onDelete: (id: string) => void;
-}) => (
-  <Card className="relative p-6 transition-colors hover:border-primary">
-    <Link href={`/codeground/${codeground.id}`} className="block">
+  onStart: (id: string) => void;
+  onStop: (id: string) => void;
+}) => {
+  const status = codeground.status ?? "PROVISIONING";
+  const isRunning = status === "RUNNING";
+  const isBusy = status === "PROVISIONING";
+
+  // Opening a codeground that is not running would just fail to connect, so
+  // the card is only a link once there is something to connect to.
+  const header = (
+    <>
       <div className="flex items-start justify-between">
         <div className="space-y-1">
           <FolderGit2 className="w-8 h-8 mb-2 text-primary" />
@@ -150,43 +214,91 @@ const CodegroundCard = ({
           {codeground.codeground_type}
         </p>
       </div>
-      {codeground.updatedAt && (
-        <p className="mt-4 text-xs text-muted-foreground">
-          Updated {new Date(codeground.updatedAt).toLocaleDateString()}
-        </p>
-      )}
-    </Link>
+      <div className="flex items-center gap-2 mt-4">
+        <span
+          className={`inline-block w-2 h-2 rounded-full ${STATUS_DOT[status]}`}
+          aria-hidden="true"
+        />
+        <span className="text-xs text-muted-foreground">
+          {STATUS_LABEL[status]}
+        </span>
+        {codeground.updatedAt && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            Updated {new Date(codeground.updatedAt).toLocaleDateString()}
+          </span>
+        )}
+      </div>
+    </>
+  );
 
-    <div className="absolute bottom-3 right-3">
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
+  return (
+    <Card className="relative p-6 pb-14 transition-colors hover:border-primary">
+      {isRunning ? (
+        <Link href={`/codeground/${codeground.id}`} className="block">
+          {header}
+        </Link>
+      ) : (
+        <div className="opacity-70">{header}</div>
+      )}
+
+      <div className="absolute flex items-center gap-1 bottom-3 right-3">
+        {isRunning ? (
           <Button
             variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            size="sm"
+            className="h-7 gap-1 text-muted-foreground"
+            onClick={() => onStop(codeground.id)}
           >
-            <Trash2 className="w-4 h-4" />
+            <Square className="w-3 h-3" />
+            Stop
           </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this codeground?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes &quot;{codeground.name}&quot; and tears
-              down its running environment. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => onDelete(codeground.id)}>
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
-  </Card>
-);
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-muted-foreground"
+            disabled={isBusy}
+            onClick={() => onStart(codeground.id)}
+          >
+            {isBusy ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Play className="w-3 h-3" />
+            )}
+            Start
+          </Button>
+        )}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this codeground?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This permanently deletes &quot;{codeground.name}&quot;, including
+                its storage volume and every file in it. Stopping the codeground
+                instead keeps your work. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => onDelete(codeground.id)}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </Card>
+  );
+};
 
 const LoadingSkeleton = () => (
   <Card className="p-6">

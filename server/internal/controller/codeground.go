@@ -63,6 +63,7 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 		UserID         int            `json:"userId"`
 		Name           string         `json:"name"`
 		CodegroundType codegroundType `json:"codeground_type"`
+		Status         string         `json:"status"`
 		CreatedAt      string         `json:"createdAt"`
 		UpdatedAt      string         `json:"updatedAt"`
 	}
@@ -73,7 +74,7 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 		return
 	}
 
-	rows, err := q.db.Query("SELECT id, user_id, name, codeground_type, created_at, updated_at FROM codegrounds WHERE user_id = ?", userId)
+	rows, err := q.db.Query("SELECT id, user_id, name, codeground_type, status, created_at, updated_at FROM codegrounds WHERE user_id = ?", userId)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database query failed"})
 		return
@@ -86,10 +87,11 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 			UserID         int            `json:"userId"`
 			Name           string         `json:"name"`
 			CodegroundType codegroundType `json:"codeground_type"`
+			Status         string         `json:"status"`
 			CreatedAt      string         `json:"createdAt"`
 			UpdatedAt      string         `json:"updatedAt"`
 		}
-		err := rows.Scan(&cg.ID, &cg.UserID, &cg.Name, &cg.CodegroundType, &cg.CreatedAt, &cg.UpdatedAt)
+		err := rows.Scan(&cg.ID, &cg.UserID, &cg.Name, &cg.CodegroundType, &cg.Status, &cg.CreatedAt, &cg.UpdatedAt)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read codegrounds"})
 			return
