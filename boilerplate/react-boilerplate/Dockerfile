@@ -5,11 +5,18 @@ FROM base AS final
 # The node image already ships an unprivileged uid 1000 ("node"). The pod
 # security context pins the container to that uid, so /app has to be owned by
 # it and every install has to run as it.
-RUN mkdir -p /app/codeground /app/wss && chown -R node:node /app
+#
+# The project is built at /opt/codeground-template rather than in place.
+# /app/codeground is only a mount point: an init container seeds the
+# codeground's persistent volume from the template the first time it is used,
+# and the volume is what the container actually runs from. Building the project
+# once, in the template, keeps node_modules out of the image twice over.
+RUN mkdir -p /app/codeground /app/wss /opt/codeground-template \
+    && chown -R node:node /app /opt/codeground-template
 
 USER node
 
-WORKDIR /app/codeground
+WORKDIR /opt/codeground-template
 COPY --chown=node:node codeground/package*.json ./
 RUN npm install
 COPY --chown=node:node codeground ./
