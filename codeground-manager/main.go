@@ -128,6 +128,13 @@ func main() {
 			case "delete":
 				log.Printf("Processing 'delete' action for codeground: %+v\n", queueMsg.Codeground)
 				actionErr = codeground.DeleteCodeground()
+			case "start":
+				log.Printf("Processing 'start' action for codeground: %+v\n", queueMsg.Codeground)
+				setStatus(db, codeground.Id, StatusProvisioning, "")
+				actionErr = codeground.StartCodeground()
+				if actionErr == nil {
+					setStatus(db, codeground.Id, StatusRunning, "")
+				}
 			case "stop":
 				log.Printf("Processing 'stop' action for codeground: %+v\n", queueMsg.Codeground)
 				actionErr = codeground.StopCodeground()
