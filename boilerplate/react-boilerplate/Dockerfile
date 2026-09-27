@@ -22,11 +22,6 @@ COPY --chown=node:node wss ./
 EXPOSE 5173 9000
 
 WORKDIR /app
-RUN echo '#!/bin/sh\n\
-cd /app/wss && node index.js & \n\
-cd /app/codeground && \n\
-# Keep container running\n\
-tail -f /dev/null' > /app/start.sh && \
-    chmod +x /app/start.sh
+COPY --chown=node:node --chmod=755 start.sh /app/start.sh
 
-CMD ["sh", "-c", "/app/start.sh"]
+CMD ["/app/start.sh"]
