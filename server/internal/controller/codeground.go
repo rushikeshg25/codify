@@ -198,6 +198,91 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 }
 
 /*
+ownedCodeground resolves a codeground the caller is allowed to act on.
+
+Every handler here scopes its query by user_id as well as id, so an id alone is
+never enough to reach someone else's codeground. Returning the owner id also
+avoids the unchecked userId.(int) assertion at the call sites.
+*/
+func (q *CodegroundController) ownedCodeground(c *gin.Context) (string, int, bool) {
+	codegroundId := c.Param("codegroundId")
+	if codegroundId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
+		return "", 0, false
+	}
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return "", 0, false
+	}
+
+	var ownerId int
+	err := q.db.QueryRow("SELECT user_id FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).Scan(&ownerId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return "", 0, false
+	}
+	return codegroundId, ownerId, true
+}
+
+/*
+StartCodeground brings a stopped codeground back up.
+
+The work happens in the manager, so this returns 202: the browser polls the
+status endpoint until it reports RUNNING. Status is moved to PROVISIONING here
+rather than waiting for the manager to pick the message up, so the UI reacts
+immediately instead of showing STOPPED for another poll or two.
+*/
+func (q *CodegroundController) StartCodeground(c *gin.Context) {
+	codegroundId, ownerId, ok := q.ownedCodeground(c)
+	if !ok {
+		return
+	}
+
+	if err := q.q.PublishToQueue(queue.Codeground{ID: codegroundId, UserID: ownerId}, "start"); err != nil {
+		log.Printf("failed to queue start for codeground %s: %v", codegroundId, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not start the codeground, please retry"})
+		return
+	}
+
+	if _, err := q.db.Exec(
+		"UPDATE codegrounds SET status = 'PROVISIONING', status_detail = NULL, last_active_at = CURRENT_TIMESTAMP WHERE id = ?",
+		codegroundId,
+	); err != nil {
+		// The manager writes the authoritative status; this is only to make the
+		// UI responsive, so a failure here is not worth failing the request.
+		log.Printf("failed to mark codeground %s provisioning: %v", codegroundId, err)
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{"status": "PROVISIONING"})
+}
+
+/*
+StopCodeground releases a codeground's compute without destroying its files.
+
+Unlike delete this keeps the row and the volume, so the codeground can be
+started again at the same hostname with its work intact.
+*/
+func (q *CodegroundController) StopCodeground(c *gin.Context) {
+	codegroundId, ownerId, ok := q.ownedCodeground(c)
+	if !ok {
+		return
+	}
+
+	if err := q.q.PublishToQueue(queue.Codeground{ID: codegroundId, UserID: ownerId}, "stop"); err != nil {
+		log.Printf("failed to queue stop for codeground %s: %v", codegroundId, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not stop the codeground, please retry"})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{"status": "STOPPING"})
+}
+
+/*
 GetCodegroundStatus reports where a codeground is in its lifecycle.
 
 The browser polls this before opening the websocket: a pod takes tens of
@@ -351,18 +436,6 @@ func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
 }
 
 func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
-	codegroundId := c.Param("codegroundId")
-	var err error
-
-	if codegroundId == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
-		return
-	}
-	userId, exists := c.Get("userId")
-	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
-		return
-	}
 	/*
 		Order matters. Removing the row first and publishing second means a
 		broker failure leaves Kubernetes resources running with nothing in the
@@ -373,14 +446,8 @@ func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
 		the worst case is a row whose resources are already gone, which the user
 		can retry and the reconciler can settle.
 	*/
-	var ownerId int
-	err = q.db.QueryRow("SELECT user_id FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).Scan(&ownerId)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		}
+	codegroundId, ownerId, ok := q.ownedCodeground(c)
+	if !ok {
 		return
 	}
 
@@ -393,7 +460,7 @@ func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
 		return
 	}
 
-	if _, err := q.db.Exec("DELETE FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId); err != nil {
+	if _, err := q.db.Exec("DELETE FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, ownerId); err != nil {
 		log.Printf("teardown queued but row delete failed for codeground %s: %v", codegroundId, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
