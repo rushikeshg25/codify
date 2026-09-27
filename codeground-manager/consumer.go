@@ -89,10 +89,38 @@ func (c *Codeground) DeleteCodeground() error {
 	return nil
 }
 
-func (c *Codeground) StartCodeground() error { return c.CreateCodeground() }
+/*
+StartCodeground brings a stopped codeground back up.
 
-// StopCodeground tears down the running k8s resources for a codeground.
-// Currently equivalent to a delete; persistent state is not retained.
+Normally this is just a scale back to one replica, which reattaches the same
+volume at the same hostname. If the Deployment is gone entirely — reaped by an
+older build, or lost to a failed create — it provisions from scratch instead,
+and the volume it finds still holds the user's files.
+*/
+func (c *Codeground) StartCodeground() error {
+	err := c.K8s.ScaleDeployment(*c, 1)
+	if err == nil {
+		return nil
+	}
+	if k8serrors.IsNotFound(err) {
+		log.Printf("codeground %s: no deployment to start, provisioning", c.Id)
+		return c.CreateCodeground()
+	}
+	return fmt.Errorf("start codeground: %w", err)
+}
+
+/*
+StopCodeground releases a codeground's compute while keeping its work.
+
+This used to call DeleteCodeground, so "stop" and "delete" were the same
+operation with different names and stopping destroyed everything the user had
+written. Scaling to zero frees the CPU and memory reservation; the volume,
+Service, Ingress and NetworkPolicy stay, so a later start is seamless.
+*/
 func (c *Codeground) StopCodeground() error {
-	return c.DeleteCodeground()
+	err := c.K8s.ScaleDeployment(*c, 0)
+	if err != nil && !k8serrors.IsNotFound(err) {
+		return fmt.Errorf("stop codeground: %w", err)
+	}
+	return nil
 }

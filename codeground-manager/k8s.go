@@ -473,6 +473,49 @@ func (k *K8s) DeleteNetworkPolicy(codeground Codeground) error {
 	return k.clientset.NetworkingV1().NetworkPolicies(k.namespace).Delete(ctx, policyName, metav1.DeleteOptions{})
 }
 
+/*
+ScaleDeployment stops or starts a codeground without destroying it.
+
+Stop used to be an alias for delete, so it took the user's files with it.
+Scaling to zero releases the CPU and memory while the volume, Service, Ingress
+and NetworkPolicy stay in place, so starting again returns the codeground
+exactly as it was — at the same hostname, with the same files.
+*/
+func (k *K8s) ScaleDeployment(codeground Codeground, replicas int32) error {
+	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
+
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+
+	scale, err := k.clientset.AppsV1().Deployments(k.namespace).GetScale(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if scale.Spec.Replicas == replicas {
+		return nil
+	}
+
+	scale.Spec.Replicas = replicas
+	_, err = k.clientset.AppsV1().Deployments(k.namespace).UpdateScale(ctx, deploymentName, scale, metav1.UpdateOptions{})
+	return err
+}
+
+// DeploymentReplicas reports the desired replica count, which is how the
+// reconciler tells a stopped codeground from a running one.
+func (k *K8s) DeploymentReplicas(codeground Codeground) (int32, error) {
+	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
+
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+
+	scale, err := k.clientset.AppsV1().Deployments(k.namespace).GetScale(ctx, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return 0, err
+	}
+	return scale.Spec.Replicas, nil
+}
+
 func (k *K8s) DeleteDeployment(codeground Codeground) error {
 	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
 	ctx, cancel := ctxWithTimeout()
