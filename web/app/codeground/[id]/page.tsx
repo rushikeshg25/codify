@@ -17,7 +17,8 @@ import api from "@/lib/api";
 import { codegroundApiUrl, codegroundWsUrl } from "@/lib/config";
 import useSocket from "@/lib/socket";
 import { Terminal as XTerminal } from "@xterm/xterm";
-import { Terminal as TerminalIcon, Loader2 } from "lucide-react";
+import { Terminal as TerminalIcon, Loader2, Play } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import "@xterm/xterm/css/xterm.css";
 
 interface TreeNode {
@@ -49,10 +50,30 @@ export default function CodegroundPage() {
     retry: false,
   });
 
+  /*
+    A codeground can be stopped, still provisioning, or failed. Connecting to
+    any of those just produces a socket error and a spinner that never
+    resolves, so poll the status and only wire anything up once the pod is
+    actually running.
+  */
+  const { data: lifecycle, refetch: refetchStatus } = useQuery({
+    queryKey: ["codeground-status", id],
+    queryFn: async () => {
+      const res = await api.get(`/codeground/${id}/status`);
+      return res.data as { status: string; status_detail: string };
+    },
+    enabled: !!id,
+    // Stop polling once there is nothing left to wait for.
+    refetchInterval: (query) =>
+      query.state.data?.status === "PROVISIONING" ? 3000 : false,
+  });
+
+  const isReady = lifecycle?.status === "RUNNING";
+
   // useSocket ignores an empty url, so it's safe to call before the codeground
   // has loaded — this keeps all hooks unconditional (Rules of Hooks).
   const socket = useSocket(
-    codeground ? codegroundWsUrl(codeground.id) : "",
+    codeground && isReady ? codegroundWsUrl(codeground.id) : "",
     codeground?.access_token,
   );
   const [fileTree, setFileTree] = useState<TreeNode>({});
@@ -63,7 +84,7 @@ export default function CodegroundPage() {
   const isRendered = useRef(false);
 
   const getFileTree = useCallback(async () => {
-    if (!codeground) return;
+    if (!codeground || !isReady) return;
     try {
       setLoading(true);
       setError(null);
@@ -83,7 +104,7 @@ export default function CodegroundPage() {
     } finally {
       setLoading(false);
     }
-  }, [codeground]);
+  }, [codeground, isReady]);
 
   // Terminal wiring — set up once per live socket connection.
   useEffect(() => {
@@ -151,6 +172,55 @@ export default function CodegroundPage() {
     return (
       <div className="h-screen flex items-center justify-center text-lg">
         Codeground not found
+      </div>
+    );
+  }
+
+  if (!isReady) {
+    return (
+      <div className="h-screen flex flex-col">
+        <Navbar name={codeground.name} />
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center px-4">
+          {lifecycle?.status === "PROVISIONING" ? (
+            <>
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              <p className="text-muted-foreground">
+                Starting this codeground…
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-lg">
+                {lifecycle?.status === "FAILED"
+                  ? "This codeground failed to start."
+                  : "This codeground is stopped."}
+              </p>
+              {lifecycle?.status_detail && (
+                <p className="text-sm text-muted-foreground max-w-md">
+                  {lifecycle.status_detail}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Your files are kept on its volume and will be there when it
+                starts again.
+              </p>
+              <Button
+                className="gap-2 mt-2"
+                onClick={async () => {
+                  try {
+                    await api.post(`/codeground/${id}/start`);
+                    await refetchStatus();
+                  } catch {
+                    // The status poll reports the real outcome either way.
+                  }
+                }}
+              >
+                <Play className="w-4 h-4" />
+                Start codeground
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     );
   }
