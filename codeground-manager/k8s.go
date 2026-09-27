@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -85,6 +86,59 @@ func (k *K8s) DeleteSecret(codeground Codeground) error {
 	return k.clientset.CoreV1().Secrets(k.namespace).Delete(ctx, secretName(codeground), metav1.DeleteOptions{})
 }
 
+// pvcName is the codeground's persistent workspace.
+func pvcName(codeground Codeground) string {
+	return fmt.Sprintf("codeground-pvc-%d-%s", codeground.UserId, codeground.Id)
+}
+
+/*
+CreatePVC gives the codeground somewhere its files survive a restart.
+
+Without it, stopping a codeground destroyed everything the user had written,
+because the pod's filesystem was the only copy. The volume is what makes stop
+and start meaningful, and what lets the idle reaper stop a codeground without
+throwing away work.
+*/
+func (k *K8s) CreatePVC(codeground Codeground) error {
+	pvcClient := k.clientset.CoreV1().PersistentVolumeClaims(k.namespace)
+
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+
+	name := pvcName(codeground)
+	_, err := pvcClient.Get(ctx, name, metav1.GetOptions{})
+	if err == nil {
+		log.Println("PVC already exists:", name)
+		return nil
+	}
+
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Labels: codegroundLabels(codeground)},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			Resources: corev1.VolumeResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: resource.MustParse(envOr("CODEGROUND_VOLUME_SIZE", "2Gi")),
+				},
+			},
+		},
+	}
+
+	// Empty means "use the cluster default", which is what most installs want.
+	if class := os.Getenv("CODEGROUND_STORAGE_CLASS"); class != "" {
+		pvc.Spec.StorageClassName = &class
+	}
+
+	_, err = pvcClient.Create(ctx, pvc, metav1.CreateOptions{})
+	return err
+}
+
+func (k *K8s) DeletePVC(codeground Codeground) error {
+	ctx, cancel := ctxWithTimeout()
+	defer cancel()
+	return k.clientset.CoreV1().PersistentVolumeClaims(k.namespace).Delete(ctx, pvcName(codeground), metav1.DeleteOptions{})
+}
+
 func (k *K8s) CreateDeployment(codeground Codeground) error {
 	deploymentName := fmt.Sprintf("codeground-deployment-%d-%s", codeground.UserId, codeground.Id)
 
@@ -113,16 +167,55 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 		ObjectMeta: metav1.ObjectMeta{Name: deploymentName, Labels: codegroundLabels(codeground)},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(1),
+			// The workspace volume is ReadWriteOnce, so it cannot attach to a
+			// new pod while the old one still holds it. A rolling update would
+			// deadlock waiting for exactly that.
+			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"app": deploymentName},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{Labels: podLabels},
 				Spec: corev1.PodSpec{
+					/*
+						A volume mounted at /app/codeground hides whatever the
+						image has there, so a fresh codeground would start
+						empty. This seeds it from the template baked into the
+						image, once, guarded by a marker file.
+
+						The marker rather than an emptiness check is deliberate:
+						a freshly formatted ext4 volume already contains
+						lost+found, so "is it empty" is not a reliable question.
+					*/
+					InitContainers: []corev1.Container{
+						{
+							Name:  "seed-workspace",
+							Image: image,
+							Command: []string{"sh", "-c",
+								"[ -f /workspace/.codeground-seeded ] || { cp -a /opt/codeground-template/. /workspace/ && touch /workspace/.codeground-seeded; }"},
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: workspaceVolume, MountPath: "/workspace"},
+							},
+							SecurityContext: codegroundSecurityContext(),
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: workspaceVolume,
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: pvcName(codeground),
+								},
+							},
+						},
+					},
 					Containers: []corev1.Container{
 						{
 							Name:  "app-container",
 							Image: image,
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: workspaceVolume, MountPath: "/app/codeground"},
+							},
 							Ports: []corev1.ContainerPort{
 								{ContainerPort: containerPort},
 								{ContainerPort: 9000},
@@ -157,22 +250,7 @@ func (k *K8s) CreateDeployment(codeground Codeground) error {
 									corev1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 								},
 							},
-							SecurityContext: &corev1.SecurityContext{
-								// The image installs into /app as root at build
-								// time; at run time nothing needs privilege.
-								RunAsNonRoot:             boolPtr(true),
-								RunAsUser:                int64Ptr(codegroundUID),
-								RunAsGroup:               int64Ptr(codegroundGID),
-								AllowPrivilegeEscalation: boolPtr(false),
-								Capabilities: &corev1.Capabilities{
-									Drop: []corev1.Capability{"ALL"},
-								},
-								// Not read-only: the whole point of a codeground
-								// is that the user writes files and runs installs.
-								// Escape surface is cut by the capability drop and
-								// the seccomp profile below instead.
-								ReadOnlyRootFilesystem: boolPtr(false),
-							},
+							SecurityContext: codegroundSecurityContext(),
 						},
 					},
 					SecurityContext: &corev1.PodSecurityContext{
@@ -425,6 +503,27 @@ const (
 // wssPort is the in-pod agent (terminal + file API) port, the same for both
 // codeground types.
 const wssPort int32 = 9000
+
+// workspaceVolume is the persistent workspace mounted into every codeground.
+const workspaceVolume = "workspace"
+
+// codegroundSecurityContext is applied to both the app container and the init
+// container that seeds its volume; neither needs any privilege.
+func codegroundSecurityContext() *corev1.SecurityContext {
+	return &corev1.SecurityContext{
+		RunAsNonRoot:             boolPtr(true),
+		RunAsUser:                int64Ptr(codegroundUID),
+		RunAsGroup:               int64Ptr(codegroundGID),
+		AllowPrivilegeEscalation: boolPtr(false),
+		Capabilities: &corev1.Capabilities{
+			Drop: []corev1.Capability{"ALL"},
+		},
+		// Not read-only: the whole point of a codeground is that the user
+		// writes files and runs installs. Escape surface is cut by the
+		// capability drop and the seccomp profile on the pod instead.
+		ReadOnlyRootFilesystem: boolPtr(false),
+	}
+}
 
 // corsOrigin is the browser origin the in-pod agent will accept. It has to
 // match the frontend the user actually loads.

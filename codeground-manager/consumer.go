@@ -37,6 +37,7 @@ func (c *Codeground) CreateCodeground() error {
 	}{
 		{"network policy", c.K8s.CreateNetworkPolicy},
 		{"secret", c.K8s.CreateSecret},
+		{"volume", c.K8s.CreatePVC},
 		{"deployment", c.K8s.CreateDeployment},
 		{"service", c.K8s.CreateService},
 		{"ingress", c.K8s.CreateIngress},
@@ -70,6 +71,9 @@ func (c *Codeground) DeleteCodeground() error {
 		{"deployment", c.K8s.DeleteDeployment},
 		{"secret", c.K8s.DeleteSecret},
 		{"network policy", c.K8s.DeleteNetworkPolicy},
+		// Last: the volume holds the user's work, so it only goes once
+		// everything that could still be writing to it is gone.
+		{"volume", c.K8s.DeletePVC},
 	}
 
 	var failures []error
