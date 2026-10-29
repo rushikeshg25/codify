@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { ChevronRight, ChevronDown, Folder, File } from "lucide-react";
 
+// A directory maps to an object; a file maps to its path relative to the
+// project root, which is the identifier the sandbox expects back.
 interface TreeNode {
-  [key: string]: TreeNode | null;
+  [key: string]: TreeNode | string | null;
 }
 
 interface FileTreeProps {
@@ -40,7 +42,7 @@ const FileTree = ({
 };
 
 interface TreeNodeProps {
-  node: TreeNode | null;
+  node: TreeNode | string | null;
   name: string;
   level: number;
   defaultExpanded: boolean;
@@ -61,14 +63,15 @@ const TreeNode = ({
   if (name === "node_modules") return null;
 
   const isDirectory = node !== null && typeof node === "object";
-  const entries = isDirectory && node ? Object.entries(node) : [];
-  const isSelected = !isDirectory && name === selectedFile;
+  const entries = isDirectory ? Object.entries(node as TreeNode) : [];
+  const filePath = typeof node === "string" ? node : name;
+  const isSelected = !isDirectory && filePath === selectedFile;
 
   const activate = () => {
     if (isDirectory) {
       setIsExpanded(!isExpanded);
     } else {
-      selectFile(name);
+      selectFile(filePath);
     }
   };
 
@@ -119,7 +122,7 @@ const TreeNode = ({
         <span>{name}</span>
       </div>
 
-      {isDirectory && node && (
+      {isDirectory && (
         <div
           className={`overflow-hidden transition-all duration-200 ease-in-out
             ${isExpanded ? "max-h-[10000px] opacity-100" : "max-h-0 opacity-0"}`}

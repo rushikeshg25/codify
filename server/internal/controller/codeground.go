@@ -2,6 +2,7 @@ package controller
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"server/internal/queue"
 	"time"
@@ -10,8 +11,8 @@ import (
 	"github.com/jaevor/go-nanoid"
 )
 
-const(
-	alphabet="abcdefghijklmnopqrstuvwxyz"
+const (
+	alphabet = "abcdefghijklmnopqrstuvwxyz"
 )
 
 type requestBody struct {
@@ -99,12 +100,11 @@ func (q *CodegroundController) GetCodegrounds(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": codegrounds})
 }
 
-
 func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 	var reqbody requestBody
 	var err error
-	
-	generator,err := nanoid.CustomUnicode(alphabet,8)
+
+	generator, err := nanoid.CustomUnicode(alphabet, 8)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
@@ -135,15 +135,29 @@ func (q *CodegroundController) CreateCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	q.q.PublishToQueue(queue.Codeground{
+	if err := q.q.PublishToQueue(queue.Codeground{
 		ID:             codegroundID,
 		UserID:         userId.(int),
 		Name:           reqbody.Name,
 		CodegroundType: reqbody.Type,
 		CreatedAt:      time.Now().Format("2006-01-02 15:04:05"),
 		UpdatedAt:      time.Now().Format("2006-01-02 15:04:05"),
-	}, "create")
-	c.JSON(http.StatusCreated, gin.H{"id": codegroundID, "name": reqbody.Name, "codeground_type": reqbody.Type, "user_id": userId, "created_at": time.Now().Format("2006-01-02 15:04:05"), "updated_at": time.Now().Format("2006-01-02 15:04:05")})
+	}, "create"); err != nil {
+		// The row stays: the reconciler will provision or clean it up, and the
+		// user sees a failure rather than a codeground that never appears.
+		log.Printf("failed to queue create for codeground %s: %v", codegroundID, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not schedule the codeground, please retry"})
+		return
+	}
+	// Mint the codeground-scoped token up front so the browser never has to
+	// talk to the pod unauthenticated.
+	accessToken, err := GenerateCodegroundToken(codegroundID, userId.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"id": codegroundID, "name": reqbody.Name, "codeground_type": reqbody.Type, "user_id": userId, "access_token": accessToken, "created_at": time.Now().Format("2006-01-02 15:04:05"), "updated_at": time.Now().Format("2006-01-02 15:04:05")})
 
 }
 
@@ -172,7 +186,119 @@ func (q *CodegroundController) GetCodeground(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"name": codeground.name, "id": codeground.id, "codeground_type": codeground.codeground_type})
+	// The ownership check above (id AND user_id) is what authorises this
+	// token, so it can only ever be issued to the codeground's owner.
+	accessToken, err := GenerateCodegroundToken(codeground.id, codeground.userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"name": codeground.name, "id": codeground.id, "codeground_type": codeground.codeground_type, "access_token": accessToken})
+}
+
+/*
+GetCodegroundStatus reports where a codeground is in its lifecycle.
+
+The browser polls this before opening the websocket: a pod takes tens of
+seconds to schedule and pull, and until it is RUNNING a connection attempt just
+fails. It also distinguishes a slow start from a failed one, which previously
+only existed as a line in the manager's log.
+*/
+func (q *CodegroundController) GetCodegroundStatus(c *gin.Context) {
+	codegroundId := c.Param("codegroundId")
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
+
+	var status string
+	var detail sql.NullString
+	var lastActive string
+	err := q.db.QueryRow(
+		"SELECT status, status_detail, last_active_at FROM codegrounds WHERE id = ? AND user_id = ?",
+		codegroundId, userId,
+	).Scan(&status, &detail, &lastActive)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":         status,
+		"status_detail":  detail.String,
+		"last_active_at": lastActive,
+	})
+}
+
+/*
+Heartbeat records that someone still has this codeground open.
+
+The ping comes from the browser rather than the pod: the pod is denied egress
+to the cluster's private ranges, and "is a human still using this" is really a
+question about the tab, not the container.
+*/
+func (q *CodegroundController) Heartbeat(c *gin.Context) {
+	codegroundId := c.Param("codegroundId")
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
+
+	res, err := q.db.Exec(
+		"UPDATE codegrounds SET last_active_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?",
+		codegroundId, userId,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		return
+	}
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// GetCodegroundToken re-issues a codeground access token. The browser calls
+// this when its current token is close to expiring.
+func (q *CodegroundController) GetCodegroundToken(c *gin.Context) {
+	codegroundId := c.Param("codegroundId")
+	if codegroundId == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "codegroundId is required"})
+		return
+	}
+	userId, exists := c.Get("userId")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
+		return
+	}
+
+	var ownerId int
+	err := q.db.QueryRow("SELECT user_id FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).Scan(&ownerId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+		}
+		return
+	}
+
+	accessToken, err := GenerateCodegroundToken(codegroundId, ownerId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"access_token": accessToken})
 }
 
 func (q *CodegroundController) UpdateCodeground(c *gin.Context) {
@@ -237,18 +363,41 @@ func (q *CodegroundController) DeleteCodeground(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get userId from context"})
 		return
 	}
-	res, err := q.db.Exec("DELETE FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId)
+	/*
+		Order matters. Removing the row first and publishing second means a
+		broker failure leaves Kubernetes resources running with nothing in the
+		database pointing at them — invisible and unbillable, but still
+		consuming a node.
+
+		Confirming ownership, publishing, and only then deleting the row means
+		the worst case is a row whose resources are already gone, which the user
+		can retry and the reconciler can settle.
+	*/
+	var ownerId int
+	err = q.db.QueryRow("SELECT user_id FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId).Scan(&ownerId)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		}
+		return
+	}
+
+	if err := q.q.PublishToQueue(queue.Codeground{
+		ID:     codegroundId,
+		UserID: ownerId,
+	}, "delete"); err != nil {
+		log.Printf("failed to queue delete for codeground %s: %v", codegroundId, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Could not schedule the teardown, please retry"})
+		return
+	}
+
+	if _, err := q.db.Exec("DELETE FROM codegrounds WHERE id = ? AND user_id = ?", codegroundId, userId); err != nil {
+		log.Printf("teardown queued but row delete failed for codeground %s: %v", codegroundId, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Codeground not found"})
-		return
-	}
-	q.q.PublishToQueue(queue.Codeground{
-		ID:     codegroundId,
-		UserID: userId.(int),
-	}, "delete")
+
 	c.JSON(http.StatusOK, gin.H{"data": nil})
 }

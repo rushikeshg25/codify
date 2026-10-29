@@ -14,14 +14,19 @@ import { codegroundApiUrl, codegroundWsUrl } from "@/lib/config";
 interface EditorProps {
   file: string;
   codegroundId: string;
+  accessToken: string;
 }
 
-export function EditorWindow({ file, codegroundId }: EditorProps) {
+export function EditorWindow({
+  file,
+  codegroundId,
+  accessToken,
+}: EditorProps) {
   const [code, setCode] = useState("");
   const { theme } = useTheme();
   const [selectedFileContent, setSelectedFileContent] = useState("");
   const isSaved = selectedFileContent === code;
-  const socket = useSocket(codegroundWsUrl(codegroundId));
+  const socket = useSocket(codegroundWsUrl(codegroundId), accessToken);
   useEffect(() => {
     setCode(selectedFileContent);
   }, [selectedFileContent]);
@@ -46,6 +51,7 @@ export function EditorWindow({ file, codegroundId }: EditorProps) {
     try {
       const response = await fetch(
         `${codegroundApiUrl(codegroundId)}/files/content?file=${encodeURIComponent(file)}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } },
       );
       if (!response.ok) {
         throw new Error(`Failed to load file (${response.status})`);
@@ -55,7 +61,7 @@ export function EditorWindow({ file, codegroundId }: EditorProps) {
     } catch (err) {
       console.error("Failed to load file contents:", err);
     }
-  }, [file, codegroundId]);
+  }, [file, codegroundId, accessToken]);
 
   useEffect(() => {
     if (file) getFileContents();
